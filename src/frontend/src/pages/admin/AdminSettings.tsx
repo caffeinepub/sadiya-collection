@@ -13,14 +13,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import {
   CheckCircle,
   CreditCard,
   Eye,
   EyeOff,
+  Globe,
+  KeyRound,
   Loader2,
+  Lock,
+  Phone,
   Plus,
   Save,
   Settings,
@@ -30,14 +33,17 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "../../contexts/AuthContext";
 import { useActor } from "../../hooks/useActor";
 import {
   useAddPaymentGateway,
   useAllPaymentGateways,
   useDeletePaymentGateway,
   useIsStripeConfigured,
+  useSaveSiteSettings,
+  useSiteSettings,
 } from "../../hooks/useQueries";
 
 export default function AdminSettings() {
@@ -47,6 +53,91 @@ export default function AdminSettings() {
   const addGateway = useAddPaymentGateway();
   const deleteGateway = useDeletePaymentGateway();
   const { actor } = useActor();
+  const { changeAdminPassword } = useAuth();
+
+  // Admin Password Change
+  const [pwForm, setPwForm] = useState({
+    current: "",
+    next: "",
+    confirm: "",
+  });
+  const [showPw, setShowPw] = useState({
+    current: false,
+    next: false,
+    confirm: false,
+  });
+  const [pwLoading, setPwLoading] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pwForm.next !== pwForm.confirm) {
+      toast.error("New passwords do not match.");
+      return;
+    }
+    if (pwForm.next.length < 8) {
+      toast.error("New password must be at least 8 characters.");
+      return;
+    }
+    if (!/[A-Z]/.test(pwForm.next)) {
+      toast.error("New password must contain at least one uppercase letter.");
+      return;
+    }
+    if (!/[0-9]/.test(pwForm.next)) {
+      toast.error("New password must contain at least one number.");
+      return;
+    }
+    setPwLoading(true);
+    try {
+      await changeAdminPassword(pwForm.current, pwForm.next);
+      toast.success("Admin password changed successfully!");
+      setPwForm({ current: "", next: "", confirm: "" });
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to change password.",
+      );
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
+  // Site Settings
+  const { data: siteSettingsData, isLoading: siteSettingsLoading } =
+    useSiteSettings();
+  const saveSiteSettings = useSaveSiteSettings();
+  const [siteForm, setSiteForm] = useState({
+    storeName: "SADIYA Collection",
+    tagline: "Your Bags Shopping Ends Here",
+    brandName: "MT Industries Ltd.",
+    supportEmail: "tanzebmohammad@gmail.com",
+    supportPhone: "8750787355",
+    managerName: "Mohammad Tanzeb",
+    whatsappNumber: "8750787355",
+  });
+
+  useEffect(() => {
+    if (siteSettingsData) {
+      setSiteForm({
+        storeName: siteSettingsData.storeName || "SADIYA Collection",
+        tagline: siteSettingsData.tagline || "Your Bags Shopping Ends Here",
+        brandName: siteSettingsData.brandName || "MT Industries Ltd.",
+        supportEmail:
+          siteSettingsData.supportEmail || "tanzebmohammad@gmail.com",
+        supportPhone: siteSettingsData.supportPhone || "8750787355",
+        managerName: siteSettingsData.managerName || "Mohammad Tanzeb",
+        whatsappNumber: siteSettingsData.whatsappNumber || "8750787355",
+      });
+    }
+  }, [siteSettingsData]);
+
+  const handleSaveSiteSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await saveSiteSettings.mutateAsync(siteForm);
+      toast.success("Website details saved!");
+    } catch {
+      toast.error("Failed to save website details");
+    }
+  };
 
   // Stripe state
   const [secretKey, setSecretKey] = useState("");
@@ -139,6 +230,275 @@ export default function AdminSettings() {
       </div>
 
       <div className="space-y-6 max-w-2xl">
+        {/* ── Admin Security ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-card border border-border rounded-lg p-6"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <KeyRound className="w-5 h-5 text-primary" />
+            <h2 className="font-display text-lg font-semibold">
+              Admin Security
+            </h2>
+          </div>
+          <p className="text-sm text-muted-foreground font-body mb-5">
+            Change your admin password. Use a strong password with at least 8
+            characters, one uppercase letter, and one number.
+          </p>
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div>
+              <Label className="font-body text-sm">Current Password</Label>
+              <div className="relative mt-1.5">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type={showPw.current ? "text" : "password"}
+                  value={pwForm.current}
+                  onChange={(e) =>
+                    setPwForm((f) => ({ ...f, current: e.target.value }))
+                  }
+                  placeholder="Current password"
+                  className="pl-9 pr-10 font-body text-sm"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowPw((s) => ({ ...s, current: !s.current }))
+                  }
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPw.current ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label className="font-body text-sm">New Password</Label>
+                <div className="relative mt-1.5">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type={showPw.next ? "text" : "password"}
+                    value={pwForm.next}
+                    onChange={(e) =>
+                      setPwForm((f) => ({ ...f, next: e.target.value }))
+                    }
+                    placeholder="Min. 8 chars, 1 uppercase, 1 number"
+                    className="pl-9 pr-10 font-body text-sm"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((s) => ({ ...s, next: !s.next }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPw.next ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Label className="font-body text-sm">
+                  Confirm New Password
+                </Label>
+                <div className="relative mt-1.5">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type={showPw.confirm ? "text" : "password"}
+                    value={pwForm.confirm}
+                    onChange={(e) =>
+                      setPwForm((f) => ({ ...f, confirm: e.target.value }))
+                    }
+                    placeholder="Repeat new password"
+                    className="pl-9 pr-10 font-body text-sm"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowPw((s) => ({ ...s, confirm: !s.confirm }))
+                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPw.confirm ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <Button
+              type="submit"
+              disabled={pwLoading}
+              variant="outline"
+              className="gap-2 font-body"
+            >
+              {pwLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Shield className="w-4 h-4" />
+              )}
+              {pwLoading ? "Updating…" : "Change Password"}
+            </Button>
+          </form>
+        </motion.div>
+
+        {/* ── Website Details ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-card border border-border rounded-lg p-6"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <Globe className="w-5 h-5 text-primary" />
+            <h2 className="font-display text-lg font-semibold">
+              Website Details
+            </h2>
+          </div>
+          <p className="text-sm text-muted-foreground font-body mb-5">
+            Edit the core details displayed across your website — store name,
+            tagline, contact info, and more.
+          </p>
+
+          {siteSettingsLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground font-body py-3">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Loading website details…
+            </div>
+          ) : (
+            <form onSubmit={handleSaveSiteSettings} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="font-body text-sm">Store Name</Label>
+                  <Input
+                    value={siteForm.storeName}
+                    onChange={(e) =>
+                      setSiteForm((f) => ({ ...f, storeName: e.target.value }))
+                    }
+                    placeholder="SADIYA Collection"
+                    className="mt-1 font-body text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="font-body text-sm">Brand Name</Label>
+                  <Input
+                    value={siteForm.brandName}
+                    onChange={(e) =>
+                      setSiteForm((f) => ({ ...f, brandName: e.target.value }))
+                    }
+                    placeholder="MT Industries Ltd."
+                    className="mt-1 font-body text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label className="font-body text-sm">Tagline</Label>
+                <Input
+                  value={siteForm.tagline}
+                  onChange={(e) =>
+                    setSiteForm((f) => ({ ...f, tagline: e.target.value }))
+                  }
+                  placeholder="Your Bags Shopping Ends Here"
+                  className="mt-1 font-body text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="font-body text-sm">Support Email</Label>
+                  <Input
+                    type="email"
+                    value={siteForm.supportEmail}
+                    onChange={(e) =>
+                      setSiteForm((f) => ({
+                        ...f,
+                        supportEmail: e.target.value,
+                      }))
+                    }
+                    placeholder="support@example.com"
+                    className="mt-1 font-body text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="font-body text-sm">Support Phone</Label>
+                  <Input
+                    type="tel"
+                    value={siteForm.supportPhone}
+                    onChange={(e) =>
+                      setSiteForm((f) => ({
+                        ...f,
+                        supportPhone: e.target.value,
+                      }))
+                    }
+                    placeholder="+91 XXXXX XXXXX"
+                    className="mt-1 font-body text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="font-body text-sm">Manager Name</Label>
+                  <Input
+                    value={siteForm.managerName}
+                    onChange={(e) =>
+                      setSiteForm((f) => ({
+                        ...f,
+                        managerName: e.target.value,
+                      }))
+                    }
+                    placeholder="Your Name"
+                    className="mt-1 font-body text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="font-body text-sm flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5" />
+                    WhatsApp Number
+                  </Label>
+                  <Input
+                    type="tel"
+                    value={siteForm.whatsappNumber}
+                    onChange={(e) =>
+                      setSiteForm((f) => ({
+                        ...f,
+                        whatsappNumber: e.target.value,
+                      }))
+                    }
+                    placeholder="+91 XXXXX XXXXX"
+                    className="mt-1 font-body text-sm"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={saveSiteSettings.isPending}
+                className="gap-2 btn-ripple font-body"
+              >
+                {saveSiteSettings.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {saveSiteSettings.isPending
+                  ? "Saving…"
+                  : "Save Website Details"}
+              </Button>
+            </form>
+          )}
+        </motion.div>
+
         {/* ── Manual Payment Gateways ── */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}

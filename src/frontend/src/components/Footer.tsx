@@ -10,7 +10,7 @@ export default function Footer() {
   return (
     <footer className="bg-foreground text-background mt-16">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
           {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2 mb-3">
@@ -90,6 +90,32 @@ export default function Footer() {
                   >
                     {cat}
                   </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Legal */}
+          <div>
+            <h3
+              className="font-display text-sm font-semibold mb-4 tracking-wide"
+              style={{ color: "oklch(0.98 0.008 30)" }}
+            >
+              Legal
+            </h3>
+            <ul className="space-y-2 text-sm opacity-70">
+              {[
+                { to: "/terms", label: "Terms & Conditions" },
+                { to: "/privacy", label: "Privacy Policy" },
+                { to: "/returns", label: "Return Policy" },
+              ].map(({ to, label }) => (
+                <li key={to}>
+                  <Link
+                    to={to}
+                    className="hover:opacity-100 transition-opacity font-body"
+                  >
+                    {label}
+                  </Link>
                 </li>
               ))}
             </ul>

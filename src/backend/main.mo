@@ -4,6 +4,7 @@ import Runtime "mo:core/Runtime";
 import Iter "mo:core/Iter";
 import Array "mo:core/Array";
 import Time "mo:core/Time";
+
 import OutCall "http-outcalls/outcall";
 import Stripe "stripe/stripe";
 import Principal "mo:core/Principal";
@@ -12,7 +13,10 @@ import Storage "blob-storage/Storage";
 import MixinStorage "blob-storage/Mixin";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
+import Migration "migration";
 
+// Specify the data migration function in with clause
+(with migration = Migration.run)
 actor {
   // Mixins
   include MixinStorage();
@@ -21,7 +25,7 @@ actor {
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
-  // User Profile Management
+  // User Profile
   public type UserProfile = {
     name : Text;
     email : Text;
@@ -158,7 +162,10 @@ actor {
     totalAmount : Nat;
     status : Text;
     paymentIntentId : Text;
+    trackingNumber : Text;
+    shippingCarrier : Text;
     createdAt : Time.Time;
+    deliveredAt : Time.Time;
   };
 
   let orders = Map.empty<Text, Order>();
@@ -189,7 +196,10 @@ actor {
       totalAmount;
       status = "pending";
       paymentIntentId;
+      trackingNumber = "";
+      shippingCarrier = "";
       createdAt = Time.now();
+      deliveredAt = 0;
     };
 
     orders.add(orderId, order);
@@ -211,7 +221,86 @@ actor {
           totalAmount = order.totalAmount;
           status;
           paymentIntentId = order.paymentIntentId;
+          trackingNumber = order.trackingNumber;
+          shippingCarrier = order.shippingCarrier;
           createdAt = order.createdAt;
+          deliveredAt = if (Text.equal(status, "delivered")) { Time.now() } else {
+            order.deliveredAt;
+          };
+        };
+        orders.add(orderId, updatedOrder);
+      };
+    };
+  };
+
+  public shared ({ caller }) func updateShippingDetails(orderId : Text, trackingNumber : Text, shippingCarrier : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update shipping details");
+    };
+
+    switch (orders.get(orderId)) {
+      case (null) { Runtime.trap("Order not found") };
+      case (?order) {
+        let updatedOrder = {
+          order with
+          trackingNumber;
+          shippingCarrier;
+        };
+        orders.add(orderId, updatedOrder);
+      };
+    };
+  };
+
+  public shared ({ caller }) func cancelOrder(orderId : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Only users can cancel orders");
+    };
+
+    switch (orders.get(orderId)) {
+      case (null) { Runtime.trap("Order not found") };
+      case (?order) {
+        if (order.user != caller) {
+          Runtime.trap("You can only cancel your own orders");
+        };
+        if (not (Text.equal(order.status, "pending") or Text.equal(order.status, "processing"))) {
+          Runtime.trap("Order can only be cancelled if it is pending or processing");
+        };
+
+        let updatedOrder = {
+          order with
+          status = "cancelled";
+        };
+        orders.add(orderId, updatedOrder);
+      };
+    };
+  };
+
+  public shared ({ caller }) func requestReturn(orderId : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Only users can request returns");
+    };
+
+    switch (orders.get(orderId)) {
+      case (null) { Runtime.trap("Order not found") };
+      case (?order) {
+        if (order.user != caller) {
+          Runtime.trap("You can only return your own orders");
+        };
+        if ("delivered" != order.status) {
+          Runtime.trap("Order must be delivered to request a return");
+        };
+
+        let currentTime = Time.now();
+        let deliveryTime = order.deliveredAt;
+        let returnAllowedNanoseconds = 86_400_000_000_000;
+
+        if (currentTime - deliveryTime > returnAllowedNanoseconds) {
+          Runtime.trap("Returns are allowed only within 24 hours of delivery");
+        };
+
+        let updatedOrder = {
+          order with
+          status = "return_requested";
         };
         orders.add(orderId, updatedOrder);
       };
@@ -287,6 +376,38 @@ actor {
       case (null) { { themeName = "default" } };
       case (?theme) { theme };
     };
+  };
+
+  // Site Settings
+  public type SiteSettings = {
+    storeName : Text;
+    tagline : Text;
+    supportEmail : Text;
+    supportPhone : Text;
+    managerName : Text;
+    brandName : Text;
+    whatsappNumber : Text;
+  };
+
+  var siteSettings : SiteSettings = {
+    storeName = "SADIYA Collection";
+    tagline = "Your Bags Shopping Ends Here";
+    supportEmail = "tanzebmohammad@gmail.com";
+    supportPhone = "8750787355";
+    managerName = "Mohammad Tanzeb";
+    brandName = "MT Industries Ltd.";
+    whatsappNumber = "8750787355";
+  };
+
+  public query ({ caller }) func getSiteSettings() : async SiteSettings {
+    siteSettings;
+  };
+
+  public shared ({ caller }) func saveSiteSettings(settings : SiteSettings) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update site settings");
+    };
+    siteSettings := settings;
   };
 
   // Contact Info
@@ -386,8 +507,7 @@ actor {
     OutCall.transform(input);
   };
 
-  // PAYMENT GATEWAYS
-
+  // Payment Gateways
   public type PaymentGateway = {
     id : Text;
     name : Text;
@@ -448,8 +568,7 @@ actor {
     paymentGateways.remove(gatewayId);
   };
 
-  // REVIEWS
-
+  // Reviews
   public type Review = {
     id : Text;
     productId : Text;
@@ -492,6 +611,74 @@ actor {
         };
         reviews.remove(reviewId);
       };
+    };
+  };
+
+  // Shipping Partners
+  public type ShippingPartner = {
+    id : Text;
+    name : Text;
+    trackingUrlTemplate : Text;
+    apiKey : Text;
+    isActive : Bool;
+    logoUrl : Text;
+  };
+
+  public type MaskedShippingPartner = {
+    id : Text;
+    name : Text;
+    trackingUrlTemplate : Text;
+    isActive : Bool;
+    logoUrl : Text;
+  };
+
+  let shippingPartners = Map.empty<Text, ShippingPartner>();
+
+  public query ({ caller }) func getShippingPartners() : async [ShippingPartner] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can get all shipping partners");
+    };
+    shippingPartners.values().toArray();
+  };
+
+  public query ({ caller }) func getActiveShippingPartners() : async [MaskedShippingPartner] {
+    shippingPartners.values().toArray().filter(
+      func(partner) {
+        partner.isActive;
+      }
+    ).map(
+      func(partner) { maskShippingPartner(partner) }
+    );
+  };
+
+  public shared ({ caller }) func addShippingPartner(partner : ShippingPartner) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add shipping partners");
+    };
+    shippingPartners.add(partner.id, partner);
+  };
+
+  public shared ({ caller }) func updateShippingPartner(partner : ShippingPartner) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update shipping partners");
+    };
+    shippingPartners.add(partner.id, partner);
+  };
+
+  public shared ({ caller }) func deleteShippingPartner(partnerId : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can delete shipping partners");
+    };
+    shippingPartners.remove(partnerId);
+  };
+
+  func maskShippingPartner(partner : ShippingPartner) : MaskedShippingPartner {
+    {
+      id = partner.id;
+      name = partner.name;
+      trackingUrlTemplate = partner.trackingUrlTemplate;
+      isActive = partner.isActive;
+      logoUrl = partner.logoUrl;
     };
   };
 

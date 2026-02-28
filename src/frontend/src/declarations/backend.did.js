@@ -55,6 +55,14 @@ export const Review = IDL.Record({
   'comment' : IDL.Text,
   'rating' : IDL.Nat,
 });
+export const ShippingPartner = IDL.Record({
+  'id' : IDL.Text,
+  'name' : IDL.Text,
+  'isActive' : IDL.Bool,
+  'logoUrl' : IDL.Text,
+  'apiKey' : IDL.Text,
+  'trackingUrlTemplate' : IDL.Text,
+});
 export const CartItem = IDL.Record({
   'productId' : IDL.Text,
   'quantity' : IDL.Nat,
@@ -78,13 +86,23 @@ export const MaskedPaymentGateway = IDL.Record({
   'isActive' : IDL.Bool,
   'maskedApiKey' : IDL.Text,
 });
+export const MaskedShippingPartner = IDL.Record({
+  'id' : IDL.Text,
+  'name' : IDL.Text,
+  'isActive' : IDL.Bool,
+  'logoUrl' : IDL.Text,
+  'trackingUrlTemplate' : IDL.Text,
+});
 export const Order = IDL.Record({
   'id' : IDL.Text,
   'status' : IDL.Text,
+  'trackingNumber' : IDL.Text,
+  'deliveredAt' : Time,
   'createdAt' : Time,
   'user' : IDL.Principal,
   'totalAmount' : IDL.Nat,
   'items' : IDL.Vec(CartItem),
+  'shippingCarrier' : IDL.Text,
   'paymentIntentId' : IDL.Text,
 });
 export const UserProfile = IDL.Record({
@@ -102,6 +120,15 @@ export const ProductImage = IDL.Record({
   'blob' : ExternalBlob,
   'productId' : IDL.Text,
   'uploadedAt' : Time,
+});
+export const SiteSettings = IDL.Record({
+  'tagline' : IDL.Text,
+  'whatsappNumber' : IDL.Text,
+  'supportEmail' : IDL.Text,
+  'storeName' : IDL.Text,
+  'brandName' : IDL.Text,
+  'supportPhone' : IDL.Text,
+  'managerName' : IDL.Text,
 });
 export const StripeSessionStatus = IDL.Variant({
   'completed' : IDL.Record({
@@ -167,8 +194,10 @@ export const idlService = IDL.Service({
   'addProduct' : IDL.Func([Product], [], []),
   'addProductImage' : IDL.Func([IDL.Text, ExternalBlob], [], []),
   'addReview' : IDL.Func([Review], [], []),
+  'addShippingPartner' : IDL.Func([ShippingPartner], [], []),
   'addToCart' : IDL.Func([CartItem], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'cancelOrder' : IDL.Func([IDL.Text], [], []),
   'classifyImage' : IDL.Func([IDL.Text], [IDL.Text], []),
   'clearCart' : IDL.Func([], [], []),
   'createCheckoutSession' : IDL.Func(
@@ -180,10 +209,16 @@ export const idlService = IDL.Service({
   'deletePaymentGateway' : IDL.Func([IDL.Text], [], []),
   'deleteProduct' : IDL.Func([IDL.Text], [], []),
   'deleteReview' : IDL.Func([IDL.Text], [], []),
+  'deleteShippingPartner' : IDL.Func([IDL.Text], [], []),
   'getActiveOffers' : IDL.Func([], [IDL.Vec(Offer)], ['query']),
   'getActivePaymentGateways' : IDL.Func(
       [],
       [IDL.Vec(MaskedPaymentGateway)],
+      ['query'],
+    ),
+  'getActiveShippingPartners' : IDL.Func(
+      [],
+      [IDL.Vec(MaskedShippingPartner)],
       ['query'],
     ),
   'getAllOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
@@ -197,6 +232,8 @@ export const idlService = IDL.Service({
   'getProductImages' : IDL.Func([IDL.Text], [IDL.Vec(ProductImage)], ['query']),
   'getProductReviews' : IDL.Func([IDL.Text], [IDL.Vec(Review)], ['query']),
   'getProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
+  'getShippingPartners' : IDL.Func([], [IDL.Vec(ShippingPartner)], ['query']),
+  'getSiteSettings' : IDL.Func([], [SiteSettings], ['query']),
   'getStripeSessionStatus' : IDL.Func([IDL.Text], [StripeSessionStatus], []),
   'getThemePreference' : IDL.Func([], [ThemePreference], ['query']),
   'getUserProfile' : IDL.Func(
@@ -212,7 +249,9 @@ export const idlService = IDL.Service({
       [],
     ),
   'removeFromCart' : IDL.Func([IDL.Text], [], []),
+  'requestReturn' : IDL.Func([IDL.Text], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'saveSiteSettings' : IDL.Func([SiteSettings], [], []),
   'setStripeConfiguration' : IDL.Func([StripeConfiguration], [], []),
   'setThemePreference' : IDL.Func([ThemePreference], [], []),
   'transform' : IDL.Func(
@@ -224,6 +263,8 @@ export const idlService = IDL.Service({
   'updateOrderStatus' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'updatePaymentGateway' : IDL.Func([PaymentGateway], [], []),
   'updateProduct' : IDL.Func([Product], [], []),
+  'updateShippingDetails' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'updateShippingPartner' : IDL.Func([ShippingPartner], [], []),
 });
 
 export const idlInitArgs = [];
@@ -276,6 +317,14 @@ export const idlFactory = ({ IDL }) => {
     'comment' : IDL.Text,
     'rating' : IDL.Nat,
   });
+  const ShippingPartner = IDL.Record({
+    'id' : IDL.Text,
+    'name' : IDL.Text,
+    'isActive' : IDL.Bool,
+    'logoUrl' : IDL.Text,
+    'apiKey' : IDL.Text,
+    'trackingUrlTemplate' : IDL.Text,
+  });
   const CartItem = IDL.Record({ 'productId' : IDL.Text, 'quantity' : IDL.Nat });
   const UserRole = IDL.Variant({
     'admin' : IDL.Null,
@@ -296,13 +345,23 @@ export const idlFactory = ({ IDL }) => {
     'isActive' : IDL.Bool,
     'maskedApiKey' : IDL.Text,
   });
+  const MaskedShippingPartner = IDL.Record({
+    'id' : IDL.Text,
+    'name' : IDL.Text,
+    'isActive' : IDL.Bool,
+    'logoUrl' : IDL.Text,
+    'trackingUrlTemplate' : IDL.Text,
+  });
   const Order = IDL.Record({
     'id' : IDL.Text,
     'status' : IDL.Text,
+    'trackingNumber' : IDL.Text,
+    'deliveredAt' : Time,
     'createdAt' : Time,
     'user' : IDL.Principal,
     'totalAmount' : IDL.Nat,
     'items' : IDL.Vec(CartItem),
+    'shippingCarrier' : IDL.Text,
     'paymentIntentId' : IDL.Text,
   });
   const UserProfile = IDL.Record({
@@ -320,6 +379,15 @@ export const idlFactory = ({ IDL }) => {
     'blob' : ExternalBlob,
     'productId' : IDL.Text,
     'uploadedAt' : Time,
+  });
+  const SiteSettings = IDL.Record({
+    'tagline' : IDL.Text,
+    'whatsappNumber' : IDL.Text,
+    'supportEmail' : IDL.Text,
+    'storeName' : IDL.Text,
+    'brandName' : IDL.Text,
+    'supportPhone' : IDL.Text,
+    'managerName' : IDL.Text,
   });
   const StripeSessionStatus = IDL.Variant({
     'completed' : IDL.Record({
@@ -382,8 +450,10 @@ export const idlFactory = ({ IDL }) => {
     'addProduct' : IDL.Func([Product], [], []),
     'addProductImage' : IDL.Func([IDL.Text, ExternalBlob], [], []),
     'addReview' : IDL.Func([Review], [], []),
+    'addShippingPartner' : IDL.Func([ShippingPartner], [], []),
     'addToCart' : IDL.Func([CartItem], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'cancelOrder' : IDL.Func([IDL.Text], [], []),
     'classifyImage' : IDL.Func([IDL.Text], [IDL.Text], []),
     'clearCart' : IDL.Func([], [], []),
     'createCheckoutSession' : IDL.Func(
@@ -395,10 +465,16 @@ export const idlFactory = ({ IDL }) => {
     'deletePaymentGateway' : IDL.Func([IDL.Text], [], []),
     'deleteProduct' : IDL.Func([IDL.Text], [], []),
     'deleteReview' : IDL.Func([IDL.Text], [], []),
+    'deleteShippingPartner' : IDL.Func([IDL.Text], [], []),
     'getActiveOffers' : IDL.Func([], [IDL.Vec(Offer)], ['query']),
     'getActivePaymentGateways' : IDL.Func(
         [],
         [IDL.Vec(MaskedPaymentGateway)],
+        ['query'],
+      ),
+    'getActiveShippingPartners' : IDL.Func(
+        [],
+        [IDL.Vec(MaskedShippingPartner)],
         ['query'],
       ),
     'getAllOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
@@ -420,6 +496,8 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getProductReviews' : IDL.Func([IDL.Text], [IDL.Vec(Review)], ['query']),
     'getProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
+    'getShippingPartners' : IDL.Func([], [IDL.Vec(ShippingPartner)], ['query']),
+    'getSiteSettings' : IDL.Func([], [SiteSettings], ['query']),
     'getStripeSessionStatus' : IDL.Func([IDL.Text], [StripeSessionStatus], []),
     'getThemePreference' : IDL.Func([], [ThemePreference], ['query']),
     'getUserProfile' : IDL.Func(
@@ -435,7 +513,9 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'removeFromCart' : IDL.Func([IDL.Text], [], []),
+    'requestReturn' : IDL.Func([IDL.Text], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'saveSiteSettings' : IDL.Func([SiteSettings], [], []),
     'setStripeConfiguration' : IDL.Func([StripeConfiguration], [], []),
     'setThemePreference' : IDL.Func([ThemePreference], [], []),
     'transform' : IDL.Func(
@@ -447,6 +527,8 @@ export const idlFactory = ({ IDL }) => {
     'updateOrderStatus' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'updatePaymentGateway' : IDL.Func([PaymentGateway], [], []),
     'updateProduct' : IDL.Func([Product], [], []),
+    'updateShippingDetails' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    'updateShippingPartner' : IDL.Func([ShippingPartner], [], []),
   });
 };
 

@@ -138,10 +138,13 @@ export interface _CaffeineStorageCreateCertificateResult {
 export interface Order {
     id: string;
     status: string;
+    trackingNumber: string;
+    deliveredAt: Time;
     createdAt: Time;
     user: Principal;
     totalAmount: bigint;
     items: Array<CartItem>;
+    shippingCarrier: string;
     paymentIntentId: string;
 }
 export interface http_header {
@@ -160,8 +163,24 @@ export interface MaskedPaymentGateway {
     isActive: boolean;
     maskedApiKey: string;
 }
+export interface MaskedShippingPartner {
+    id: string;
+    name: string;
+    isActive: boolean;
+    logoUrl: string;
+    trackingUrlTemplate: string;
+}
 export interface ThemePreference {
     themeName: string;
+}
+export interface SiteSettings {
+    tagline: string;
+    whatsappNumber: string;
+    supportEmail: string;
+    storeName: string;
+    brandName: string;
+    supportPhone: string;
+    managerName: string;
 }
 export interface ShoppingItem {
     productName: string;
@@ -173,6 +192,14 @@ export interface ShoppingItem {
 export interface TransformationInput {
     context: Uint8Array;
     response: http_request_result;
+}
+export interface ShippingPartner {
+    id: string;
+    name: string;
+    isActive: boolean;
+    logoUrl: string;
+    apiKey: string;
+    trackingUrlTemplate: string;
 }
 export interface Offer {
     id: string;
@@ -233,8 +260,10 @@ export interface backendInterface {
     addProduct(product: Product): Promise<void>;
     addProductImage(productId: string, blob: ExternalBlob): Promise<void>;
     addReview(review: Review): Promise<void>;
+    addShippingPartner(partner: ShippingPartner): Promise<void>;
     addToCart(item: CartItem): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    cancelOrder(orderId: string): Promise<void>;
     classifyImage(url: string): Promise<string>;
     clearCart(): Promise<void>;
     createCheckoutSession(items: Array<ShoppingItem>, successUrl: string, cancelUrl: string): Promise<string>;
@@ -242,8 +271,10 @@ export interface backendInterface {
     deletePaymentGateway(gatewayId: string): Promise<void>;
     deleteProduct(productId: string): Promise<void>;
     deleteReview(reviewId: string): Promise<void>;
+    deleteShippingPartner(partnerId: string): Promise<void>;
     getActiveOffers(): Promise<Array<Offer>>;
     getActivePaymentGateways(): Promise<Array<MaskedPaymentGateway>>;
+    getActiveShippingPartners(): Promise<Array<MaskedShippingPartner>>;
     getAllOrders(): Promise<Array<Order>>;
     getAllPaymentGateways(): Promise<Array<PaymentGateway>>;
     getAllReviews(): Promise<Array<Review>>;
@@ -255,6 +286,8 @@ export interface backendInterface {
     getProductImages(productId: string): Promise<Array<ProductImage>>;
     getProductReviews(productId: string): Promise<Array<Review>>;
     getProducts(): Promise<Array<Product>>;
+    getShippingPartners(): Promise<Array<ShippingPartner>>;
+    getSiteSettings(): Promise<SiteSettings>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
     getThemePreference(): Promise<ThemePreference>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
@@ -262,7 +295,9 @@ export interface backendInterface {
     isStripeConfigured(): Promise<boolean>;
     placeOrder(cart: Array<CartItem>, totalAmount: bigint, paymentIntentId: string): Promise<string>;
     removeFromCart(productId: string): Promise<void>;
+    requestReturn(orderId: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    saveSiteSettings(settings: SiteSettings): Promise<void>;
     setStripeConfiguration(config: StripeConfiguration): Promise<void>;
     setThemePreference(theme: ThemePreference): Promise<void>;
     transform(input: TransformationInput): Promise<TransformationOutput>;
@@ -270,6 +305,8 @@ export interface backendInterface {
     updateOrderStatus(orderId: string, status: string): Promise<void>;
     updatePaymentGateway(gateway: PaymentGateway): Promise<void>;
     updateProduct(product: Product): Promise<void>;
+    updateShippingDetails(orderId: string, trackingNumber: string, shippingCarrier: string): Promise<void>;
+    updateShippingPartner(partner: ShippingPartner): Promise<void>;
 }
 import type { ExternalBlob as _ExternalBlob, ProductImage as _ProductImage, StripeSessionStatus as _StripeSessionStatus, Time as _Time, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -442,6 +479,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async addShippingPartner(arg0: ShippingPartner): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addShippingPartner(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addShippingPartner(arg0);
+            return result;
+        }
+    }
     async addToCart(arg0: CartItem): Promise<void> {
         if (this.processError) {
             try {
@@ -467,6 +518,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n9(this._uploadFile, this._downloadFile, arg1));
+            return result;
+        }
+    }
+    async cancelOrder(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.cancelOrder(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.cancelOrder(arg0);
             return result;
         }
     }
@@ -568,6 +633,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async deleteShippingPartner(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteShippingPartner(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteShippingPartner(arg0);
+            return result;
+        }
+    }
     async getActiveOffers(): Promise<Array<Offer>> {
         if (this.processError) {
             try {
@@ -593,6 +672,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getActivePaymentGateways();
+            return result;
+        }
+    }
+    async getActiveShippingPartners(): Promise<Array<MaskedShippingPartner>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getActiveShippingPartners();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getActiveShippingPartners();
             return result;
         }
     }
@@ -750,6 +843,34 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getShippingPartners(): Promise<Array<ShippingPartner>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getShippingPartners();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getShippingPartners();
+            return result;
+        }
+    }
+    async getSiteSettings(): Promise<SiteSettings> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getSiteSettings();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getSiteSettings();
+            return result;
+        }
+    }
     async getStripeSessionStatus(arg0: string): Promise<StripeSessionStatus> {
         if (this.processError) {
             try {
@@ -848,6 +969,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async requestReturn(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.requestReturn(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.requestReturn(arg0);
+            return result;
+        }
+    }
     async saveCallerUserProfile(arg0: UserProfile): Promise<void> {
         if (this.processError) {
             try {
@@ -859,6 +994,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.saveCallerUserProfile(arg0);
+            return result;
+        }
+    }
+    async saveSiteSettings(arg0: SiteSettings): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.saveSiteSettings(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.saveSiteSettings(arg0);
             return result;
         }
     }
@@ -957,6 +1106,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.updateProduct(arg0);
+            return result;
+        }
+    }
+    async updateShippingDetails(arg0: string, arg1: string, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateShippingDetails(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateShippingDetails(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async updateShippingPartner(arg0: ShippingPartner): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateShippingPartner(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateShippingPartner(arg0);
             return result;
         }
     }

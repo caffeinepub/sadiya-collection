@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
-  Info,
   LayoutDashboard,
   Lock,
   LogOut,
@@ -19,6 +18,7 @@ import {
   Star,
   Tag,
   TrendingUp,
+  Truck,
   Users,
   X,
 } from "lucide-react";
@@ -34,6 +34,7 @@ const NAV_ITEMS = [
   { to: "/admin/customers", label: "Customers", icon: Users },
   { to: "/admin/offers", label: "Offers", icon: Tag },
   { to: "/admin/reviews", label: "Reviews", icon: Star },
+  { to: "/admin/shipping", label: "Shipping Partners", icon: Truck },
   { to: "/admin/trends", label: "Market Trends", icon: TrendingUp },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ];
@@ -86,28 +87,6 @@ export default function AdminLayout() {
                   <p className="text-xs text-muted-foreground font-body">
                     SADIYA Collection Management
                   </p>
-                </div>
-              </div>
-
-              {/* Admin credentials info box */}
-              <div className="mb-5 p-4 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800">
-                <div className="flex items-start gap-2">
-                  <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-body text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1.5">
-                      Admin Credentials
-                    </p>
-                    <div className="space-y-1">
-                      <p className="font-body text-xs text-blue-600 dark:text-blue-400">
-                        <span className="font-medium">Email:</span>{" "}
-                        admin@sadiyacollection.com
-                      </p>
-                      <p className="font-body text-xs text-blue-600 dark:text-blue-400">
-                        <span className="font-medium">Password:</span>{" "}
-                        Admin@2024#Sadiya
-                      </p>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -180,7 +159,7 @@ export default function AdminLayout() {
                 </Button>
               </form>
 
-              <div className="mt-4 text-center">
+              <div className="mt-4 text-center space-y-2">
                 <Link to="/">
                   <Button
                     variant="ghost"
@@ -190,6 +169,12 @@ export default function AdminLayout() {
                     ← Back to Store
                   </Button>
                 </Link>
+                <p className="text-xs text-muted-foreground font-body">
+                  Forgot credentials?{" "}
+                  <span className="text-primary/70">
+                    Contact system administrator
+                  </span>
+                </p>
               </div>
             </div>
           </div>

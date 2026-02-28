@@ -24,6 +24,13 @@ export interface MaskedPaymentGateway {
   'isActive' : boolean,
   'maskedApiKey' : string,
 }
+export interface MaskedShippingPartner {
+  'id' : string,
+  'name' : string,
+  'isActive' : boolean,
+  'logoUrl' : string,
+  'trackingUrlTemplate' : string,
+}
 export interface Offer {
   'id' : string,
   'name' : string,
@@ -33,10 +40,13 @@ export interface Offer {
 export interface Order {
   'id' : string,
   'status' : string,
+  'trackingNumber' : string,
+  'deliveredAt' : Time,
   'createdAt' : Time,
   'user' : Principal,
   'totalAmount' : bigint,
   'items' : Array<CartItem>,
+  'shippingCarrier' : string,
   'paymentIntentId' : string,
 }
 export interface PaymentGateway {
@@ -72,12 +82,29 @@ export interface Review {
   'comment' : string,
   'rating' : bigint,
 }
+export interface ShippingPartner {
+  'id' : string,
+  'name' : string,
+  'isActive' : boolean,
+  'logoUrl' : string,
+  'apiKey' : string,
+  'trackingUrlTemplate' : string,
+}
 export interface ShoppingItem {
   'productName' : string,
   'currency' : string,
   'quantity' : bigint,
   'priceInCents' : bigint,
   'productDescription' : string,
+}
+export interface SiteSettings {
+  'tagline' : string,
+  'whatsappNumber' : string,
+  'supportEmail' : string,
+  'storeName' : string,
+  'brandName' : string,
+  'supportPhone' : string,
+  'managerName' : string,
 }
 export interface StripeConfiguration {
   'allowedCountries' : Array<string>,
@@ -146,8 +173,10 @@ export interface _SERVICE {
   'addProduct' : ActorMethod<[Product], undefined>,
   'addProductImage' : ActorMethod<[string, ExternalBlob], undefined>,
   'addReview' : ActorMethod<[Review], undefined>,
+  'addShippingPartner' : ActorMethod<[ShippingPartner], undefined>,
   'addToCart' : ActorMethod<[CartItem], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'cancelOrder' : ActorMethod<[string], undefined>,
   'classifyImage' : ActorMethod<[string], string>,
   'clearCart' : ActorMethod<[], undefined>,
   'createCheckoutSession' : ActorMethod<
@@ -158,8 +187,10 @@ export interface _SERVICE {
   'deletePaymentGateway' : ActorMethod<[string], undefined>,
   'deleteProduct' : ActorMethod<[string], undefined>,
   'deleteReview' : ActorMethod<[string], undefined>,
+  'deleteShippingPartner' : ActorMethod<[string], undefined>,
   'getActiveOffers' : ActorMethod<[], Array<Offer>>,
   'getActivePaymentGateways' : ActorMethod<[], Array<MaskedPaymentGateway>>,
+  'getActiveShippingPartners' : ActorMethod<[], Array<MaskedShippingPartner>>,
   'getAllOrders' : ActorMethod<[], Array<Order>>,
   'getAllPaymentGateways' : ActorMethod<[], Array<PaymentGateway>>,
   'getAllReviews' : ActorMethod<[], Array<Review>>,
@@ -171,6 +202,8 @@ export interface _SERVICE {
   'getProductImages' : ActorMethod<[string], Array<ProductImage>>,
   'getProductReviews' : ActorMethod<[string], Array<Review>>,
   'getProducts' : ActorMethod<[], Array<Product>>,
+  'getShippingPartners' : ActorMethod<[], Array<ShippingPartner>>,
+  'getSiteSettings' : ActorMethod<[], SiteSettings>,
   'getStripeSessionStatus' : ActorMethod<[string], StripeSessionStatus>,
   'getThemePreference' : ActorMethod<[], ThemePreference>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
@@ -178,7 +211,9 @@ export interface _SERVICE {
   'isStripeConfigured' : ActorMethod<[], boolean>,
   'placeOrder' : ActorMethod<[Array<CartItem>, bigint, string], string>,
   'removeFromCart' : ActorMethod<[string], undefined>,
+  'requestReturn' : ActorMethod<[string], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'saveSiteSettings' : ActorMethod<[SiteSettings], undefined>,
   'setStripeConfiguration' : ActorMethod<[StripeConfiguration], undefined>,
   'setThemePreference' : ActorMethod<[ThemePreference], undefined>,
   'transform' : ActorMethod<[TransformationInput], TransformationOutput>,
@@ -186,6 +221,8 @@ export interface _SERVICE {
   'updateOrderStatus' : ActorMethod<[string, string], undefined>,
   'updatePaymentGateway' : ActorMethod<[PaymentGateway], undefined>,
   'updateProduct' : ActorMethod<[Product], undefined>,
+  'updateShippingDetails' : ActorMethod<[string, string, string], undefined>,
+  'updateShippingPartner' : ActorMethod<[ShippingPartner], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

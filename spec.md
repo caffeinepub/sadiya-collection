@@ -1,59 +1,56 @@
-# SADIYA Collection - Online Bag Store
+# SADIYA Collection
 
 ## Current State
-New project. No existing code.
+- Full-stack e-commerce app (Motoko backend + React frontend)
+- Customer auth via email/password stored in localStorage (insecure: hardcoded admin credentials in AuthContext.tsx and displayed on AdminLayout login screen)
+- Products, orders, cart, reviews, offers, shipping tracking, payment gateways (Stripe + manual), site settings all functional
+- Admin panel with sidebar navigation: Dashboard, Products, Orders, Customers, Offers, Reviews, Market Trends, Settings
+- Theme system: 10 themes, auto-cycle every 20s, manual selection disables auto
+- No Terms & Conditions, Privacy Policy, or Return Policy pages
+- No order cancellation or return request features
+- No shipping partner management in admin
+- Admin credentials `admin@sadiyacollection.com` / `Admin@2024#Sadiya` are DISPLAYED in plain text on the login screen and hardcoded in AuthContext.tsx
 
 ## Requested Changes (Diff)
 
 ### Add
-- Full e-commerce website for "SADIYA Collection – a brand of MT Industries Ltd." with tagline "Your Bags Shopping Ends Here"
-- Customer authentication: Sign Up / Sign In
-- Product catalog with all types of bags (handbags, backpacks, tote bags, travel bags, clutches, etc.)
-- Product detail pages with image gallery, price, description, size/color options, add-to-cart
-- Shopping cart and checkout flow
-- Stripe payment integration for order payments
-- Order management: customers can view their order history and status
-- Shipping status tracking per order (carrier + tracking number stored and displayed)
-- Admin dashboard (master admin role):
-  - Product CRUD (add/edit/delete products with image upload)
-  - AI trademark/logo detection on uploaded product images via HTTP outcall to an external vision API
-  - Order management (view all orders, update shipping status and tracking number)
-  - Customer management (view all registered customers)
-  - Discount/offers management (create limited-time offers with animated banners)
-- 10 switchable themes: user can pick a theme that persists across sessions; themes stored as named CSS variable sets (e.g., Rose Gold, Midnight Black, Ocean Blue, Forest Green, Lavender, Coral, Champagne, Slate Gray, Ruby Red, Emerald)
-- Auto theme-change mode: cycles through themes automatically on a timer
-- Smooth animations: animated offer banners (pulse/glow), product card hover effects, page transitions, cart add animation, confetti/pop on checkout success
-- Contact/Support page showing: Mohammad Tanzeb | 8750787355 | tanzebmohammad@gmail.com
-- Responsive design for mobile and desktop
+- `TermsPage.tsx` — full Terms & Conditions page
+- `PrivacyPage.tsx` — full Privacy Policy page
+- `ReturnPolicyPage.tsx` — Return Policy page clearly stating 24-hour return window
+- Order cancellation: customer can cancel an order while status is still "pending" or "processing" (before shipping)
+- Return request: customer can request a return within 24 hours of delivery (status = "delivered"); shows remaining time window
+- `cancelOrder` backend function — lets the order owner cancel their own pending/processing order
+- `requestReturn` backend function — lets the order owner submit a return request within 24 hours of delivery
+- `AdminShipping.tsx` — new admin page to manage shipping partner integrations (add/edit/delete carriers with name, tracking URL template, API key, logo, active status)
+- `ShippingPartner` type in backend — stores name, trackingUrlTemplate, apiKey, isActive
+- Add/update/delete shipping partner functions in backend
+- Footer links to Terms, Privacy, Return Policy pages
+- Rate-limiting logic (frontend-level login attempt tracker: max 5 attempts, 15-min lockout) for brute-force protection
 
 ### Modify
-- N/A (new project)
+- `AuthContext.tsx` — remove hardcoded `ADMIN_PASSWORD` constant; admin auth becomes credential-less (admin is identified by Internet Identity / backend role check, NOT a hardcoded password). The admin login screen authenticates via the backend `isCallerAdmin()` check using the Internet Identity actor. Fallback: keep a local admin check but remove the password from being visible anywhere.
+- `AdminLayout.tsx` — remove the credentials info box that displays email and password in plain text. Login form keeps email/password fields but never shows credentials.
+- `OrdersPage.tsx` — add Cancel button for pending/processing orders; add Return Request button for delivered orders within 24-hour window with countdown timer
+- `AdminLayout.tsx` NAV_ITEMS — add "Shipping Partners" link
+- `App.tsx` — register new routes: `/terms`, `/privacy`, `/returns`, `/admin/shipping`
+- `Footer.tsx` — add links to Terms, Privacy Policy, Return Policy in a new "Legal" column
+- `AdminSettings.tsx` — add "Change Admin Password" section that lets admin update their stored password securely (hashed); remove any hardcoded credential references
+- `ThemeContext.tsx` — confirm auto-cycle is 20s (already done), confirm manual selection stops auto (already done); add visual indicator in header showing auto mode is on
 
 ### Remove
-- N/A (new project)
+- Hardcoded `ADMIN_PASSWORD = "Admin@2024#Sadiya"` constant from `AuthContext.tsx`
+- Credentials info box from `AdminLayout.tsx` (the blue box showing email and password)
+- Any plain-text credential display anywhere in the codebase
 
 ## Implementation Plan
-
-### Backend (Motoko)
-1. User management: register, login (via authorization component), roles (customer / admin)
-2. Product data model: id, name, description, category, price, images (blob-storage refs), stock, variants (color/size), isActive, discountPercent
-3. Cart: per-user cart with items
-4. Order data model: id, userId, items, total, paymentStatus, shippingStatus, trackingNumber, createdAt
-5. Stripe payment intent creation and webhook confirmation
-6. Shipping update endpoint (admin sets carrier + tracking)
-7. Offers/announcements: id, title, description, discount, expiresAt, isActive
-8. Theme preference: store selected theme per user
-9. AI trademark check: HTTP outcall to image analysis API on product image upload, return result to admin
-10. Admin-only guarded endpoints for product CRUD, order management, customer listing, offer management
-
-### Frontend (React + TypeScript + Tailwind)
-1. Public pages: Home (hero, featured products, offer banners), Shop (catalog with filters), Product Detail, Cart, Checkout, Order Confirmation, Contact/Support, About
-2. Auth pages: Sign Up, Sign In
-3. Customer account pages: My Orders, Profile
-4. Admin dashboard: Products, Orders, Customers, Offers, Trademark Check results
-5. Theme switcher component (10 themes + auto-cycle toggle) in header
-6. Animated offer banner component (CSS keyframe animations)
-7. Smooth page transitions (Framer Motion or CSS transitions)
-8. Cart drawer with add-to-cart animation
-9. Checkout success confetti animation
-10. Fully responsive layout
+1. Update `AuthContext.tsx`: Remove hardcoded password constant. Store admin credentials in a secure way — use a hashed credential in localStorage that admin can change from Settings. On first load, if no admin credential exists, set a default hash but never display the password. Add login attempt rate limiting (5 attempts, 15-min lockout).
+2. Update `AdminLayout.tsx`: Remove the credentials info box entirely. Keep login form clean.
+3. Update `main.mo`: Add `cancelOrder` function (validates caller owns order and status is pending/processing), `requestReturn` function (validates caller owns order, status is delivered, and within 24 hours), `ShippingPartner` type with CRUD functions.
+4. Update `backend.d.ts` to reflect new backend functions and types.
+5. Update `useQueries.ts`: Add `useCancelOrder`, `useRequestReturn`, `useShippingPartners` hooks.
+6. Create `TermsPage.tsx`, `PrivacyPage.tsx`, `ReturnPolicyPage.tsx` with proper content.
+7. Create `AdminShipping.tsx` for shipping partner management.
+8. Update `OrdersPage.tsx`: Add cancel and return request buttons with eligibility checks.
+9. Update `Footer.tsx`: Add Legal links column.
+10. Update `App.tsx`: Register all new routes.
+11. Update `AdminSettings.tsx`: Add password change section.

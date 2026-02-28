@@ -56,10 +56,13 @@ export interface ProductImage {
 export interface Order {
     id: string;
     status: string;
+    trackingNumber: string;
+    deliveredAt: Time;
     createdAt: Time;
     user: Principal;
     totalAmount: bigint;
     items: Array<CartItem>;
+    shippingCarrier: string;
     paymentIntentId: string;
 }
 export interface http_header {
@@ -78,8 +81,24 @@ export interface MaskedPaymentGateway {
     isActive: boolean;
     maskedApiKey: string;
 }
+export interface MaskedShippingPartner {
+    id: string;
+    name: string;
+    isActive: boolean;
+    logoUrl: string;
+    trackingUrlTemplate: string;
+}
 export interface ThemePreference {
     themeName: string;
+}
+export interface SiteSettings {
+    tagline: string;
+    whatsappNumber: string;
+    supportEmail: string;
+    storeName: string;
+    brandName: string;
+    supportPhone: string;
+    managerName: string;
 }
 export interface ShoppingItem {
     productName: string;
@@ -91,6 +110,14 @@ export interface ShoppingItem {
 export interface TransformationInput {
     context: Uint8Array;
     response: http_request_result;
+}
+export interface ShippingPartner {
+    id: string;
+    name: string;
+    isActive: boolean;
+    logoUrl: string;
+    apiKey: string;
+    trackingUrlTemplate: string;
 }
 export interface Offer {
     id: string;
@@ -140,8 +167,10 @@ export interface backendInterface {
     addProduct(product: Product): Promise<void>;
     addProductImage(productId: string, blob: ExternalBlob): Promise<void>;
     addReview(review: Review): Promise<void>;
+    addShippingPartner(partner: ShippingPartner): Promise<void>;
     addToCart(item: CartItem): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    cancelOrder(orderId: string): Promise<void>;
     classifyImage(url: string): Promise<string>;
     clearCart(): Promise<void>;
     createCheckoutSession(items: Array<ShoppingItem>, successUrl: string, cancelUrl: string): Promise<string>;
@@ -149,8 +178,10 @@ export interface backendInterface {
     deletePaymentGateway(gatewayId: string): Promise<void>;
     deleteProduct(productId: string): Promise<void>;
     deleteReview(reviewId: string): Promise<void>;
+    deleteShippingPartner(partnerId: string): Promise<void>;
     getActiveOffers(): Promise<Array<Offer>>;
     getActivePaymentGateways(): Promise<Array<MaskedPaymentGateway>>;
+    getActiveShippingPartners(): Promise<Array<MaskedShippingPartner>>;
     getAllOrders(): Promise<Array<Order>>;
     getAllPaymentGateways(): Promise<Array<PaymentGateway>>;
     getAllReviews(): Promise<Array<Review>>;
@@ -162,6 +193,8 @@ export interface backendInterface {
     getProductImages(productId: string): Promise<Array<ProductImage>>;
     getProductReviews(productId: string): Promise<Array<Review>>;
     getProducts(): Promise<Array<Product>>;
+    getShippingPartners(): Promise<Array<ShippingPartner>>;
+    getSiteSettings(): Promise<SiteSettings>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
     getThemePreference(): Promise<ThemePreference>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
@@ -169,7 +202,9 @@ export interface backendInterface {
     isStripeConfigured(): Promise<boolean>;
     placeOrder(cart: Array<CartItem>, totalAmount: bigint, paymentIntentId: string): Promise<string>;
     removeFromCart(productId: string): Promise<void>;
+    requestReturn(orderId: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    saveSiteSettings(settings: SiteSettings): Promise<void>;
     setStripeConfiguration(config: StripeConfiguration): Promise<void>;
     setThemePreference(theme: ThemePreference): Promise<void>;
     transform(input: TransformationInput): Promise<TransformationOutput>;
@@ -177,4 +212,6 @@ export interface backendInterface {
     updateOrderStatus(orderId: string, status: string): Promise<void>;
     updatePaymentGateway(gateway: PaymentGateway): Promise<void>;
     updateProduct(product: Product): Promise<void>;
+    updateShippingDetails(orderId: string, trackingNumber: string, shippingCarrier: string): Promise<void>;
+    updateShippingPartner(partner: ShippingPartner): Promise<void>;
 }

@@ -3,11 +3,14 @@ import type {
   CartItem,
   ContactInfo,
   MaskedPaymentGateway,
+  MaskedShippingPartner,
   Offer,
   Order,
   PaymentGateway,
   Product,
   Review,
+  ShippingPartner,
+  SiteSettings,
   UserProfile,
 } from "../backend.d";
 import { useActor } from "./useActor";
@@ -331,6 +334,170 @@ export function useDeleteReview() {
       return actor.deleteReview(reviewId);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["allReviews"] }),
+  });
+}
+
+// ─── Site Settings ───
+export function useSiteSettings() {
+  const { actor, isFetching } = useActor();
+  return useQuery<SiteSettings>({
+    queryKey: ["siteSettings"],
+    queryFn: async () => {
+      if (!actor)
+        return {
+          storeName: "SADIYA Collection",
+          tagline: "Your Bags Shopping Ends Here",
+          brandName: "MT Industries Ltd.",
+          supportEmail: "tanzebmohammad@gmail.com",
+          supportPhone: "8750787355",
+          managerName: "Mohammad Tanzeb",
+          whatsappNumber: "8750787355",
+        };
+      return actor.getSiteSettings();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useSaveSiteSettings() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (settings: SiteSettings) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.saveSiteSettings(settings);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["siteSettings"] }),
+  });
+}
+
+// ─── Shipping ───
+export function useUpdateShippingDetails() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+      trackingNumber,
+      shippingCarrier,
+    }: {
+      orderId: string;
+      trackingNumber: string;
+      shippingCarrier: string;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.updateShippingDetails(
+        orderId,
+        trackingNumber,
+        shippingCarrier,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allOrders"] });
+      qc.invalidateQueries({ queryKey: ["myOrders"] });
+    },
+  });
+}
+
+// ─── Order Actions ───
+export function useCancelOrder() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.cancelOrder(orderId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["myOrders"] });
+      qc.invalidateQueries({ queryKey: ["allOrders"] });
+    },
+  });
+}
+
+export function useRequestReturn() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.requestReturn(orderId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["myOrders"] });
+      qc.invalidateQueries({ queryKey: ["allOrders"] });
+    },
+  });
+}
+
+// ─── Shipping Partners (Admin) ───
+export function useShippingPartners() {
+  const { actor, isFetching } = useActor();
+  return useQuery<ShippingPartner[]>({
+    queryKey: ["shippingPartners"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getShippingPartners();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddShippingPartner() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (partner: ShippingPartner) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.addShippingPartner(partner);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["shippingPartners"] });
+      qc.invalidateQueries({ queryKey: ["activeShippingPartners"] });
+    },
+  });
+}
+
+export function useUpdateShippingPartner() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (partner: ShippingPartner) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.updateShippingPartner(partner);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["shippingPartners"] });
+      qc.invalidateQueries({ queryKey: ["activeShippingPartners"] });
+    },
+  });
+}
+
+export function useDeleteShippingPartner() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (partnerId: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.deleteShippingPartner(partnerId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["shippingPartners"] });
+      qc.invalidateQueries({ queryKey: ["activeShippingPartners"] });
+    },
+  });
+}
+
+// ─── Active Shipping Partners (Public) ───
+export function useActiveShippingPartners() {
+  const { actor, isFetching } = useActor();
+  return useQuery<MaskedShippingPartner[]>({
+    queryKey: ["activeShippingPartners"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getActiveShippingPartners();
+    },
+    enabled: !!actor && !isFetching,
   });
 }
 

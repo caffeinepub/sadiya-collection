@@ -124,6 +124,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setCurrentTheme(themeId);
       applyTheme(themeId);
       localStorage.setItem("sadiya-theme", themeId);
+      // Disable auto-cycle when user manually selects a theme
+      setAutoTheme(false);
+      localStorage.setItem("sadiya-auto-theme", "false");
       if (actor) {
         void actor.setThemePreference({ themeName: themeId });
       }
@@ -146,7 +149,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         if (actor) {
           void actor.setThemePreference({ themeName: nextTheme });
         }
-      }, 30000);
+      }, 20000);
     }
     return () => {
       if (autoIntervalRef.current) clearInterval(autoIntervalRef.current);

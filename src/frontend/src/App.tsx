@@ -18,9 +18,12 @@ import ContactPage from "./pages/ContactPage";
 import HomePage from "./pages/HomePage";
 import OrderSuccessPage from "./pages/OrderSuccessPage";
 import OrdersPage from "./pages/OrdersPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import ProfilePage from "./pages/ProfilePage";
+import ReturnPolicyPage from "./pages/ReturnPolicyPage";
 import ShopPage from "./pages/ShopPage";
+import TermsPage from "./pages/TermsPage";
 
 import AdminCustomers from "./pages/admin/AdminCustomers";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -31,6 +34,7 @@ import AdminOrders from "./pages/admin/AdminOrders";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminShipping from "./pages/admin/AdminShipping";
 import AdminTrends from "./pages/admin/AdminTrends";
 
 // Root layout — wraps ALL routes (provides AuthProvider, ThemeProvider, CartProvider, Toaster)
@@ -111,6 +115,24 @@ const contactRoute = createRoute({
   component: ContactPage,
 });
 
+const termsRoute = createRoute({
+  getParentRoute: () => storeLayoutRoute,
+  path: "/terms",
+  component: TermsPage,
+});
+
+const privacyRoute = createRoute({
+  getParentRoute: () => storeLayoutRoute,
+  path: "/privacy",
+  component: PrivacyPage,
+});
+
+const returnsRoute = createRoute({
+  getParentRoute: () => storeLayoutRoute,
+  path: "/returns",
+  component: ReturnPolicyPage,
+});
+
 // Admin routes — directly under rootRoute (NO header/footer from store layout)
 const adminLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -166,6 +188,12 @@ const adminReviewsRoute = createRoute({
   component: AdminReviews,
 });
 
+const adminShippingRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/shipping",
+  component: AdminShipping,
+});
+
 const routeTree = rootRoute.addChildren([
   storeLayoutRoute.addChildren([
     indexRoute,
@@ -176,6 +204,9 @@ const routeTree = rootRoute.addChildren([
     ordersRoute,
     profileRoute,
     contactRoute,
+    termsRoute,
+    privacyRoute,
+    returnsRoute,
   ]),
   adminLayoutRoute.addChildren([
     adminIndexRoute,
@@ -186,6 +217,7 @@ const routeTree = rootRoute.addChildren([
     adminSettingsRoute,
     adminTrendsRoute,
     adminReviewsRoute,
+    adminShippingRoute,
   ]),
 ]);
 

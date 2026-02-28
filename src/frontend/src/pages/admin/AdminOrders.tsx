@@ -1,4 +1,7 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -6,14 +9,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Clock, Package } from "lucide-react";
-import { motion } from "motion/react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Loader2,
+  MapPin,
+  Package,
+  Save,
+  Truck,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { formatPrice } from "../../data/sampleProducts";
 import {
   useAllOrders,
   useProducts,
   useUpdateOrderStatus,
+  useUpdateShippingDetails,
 } from "../../hooks/useQueries";
 
 const ORDER_STATUSES = [
@@ -23,6 +37,18 @@ const ORDER_STATUSES = [
   "out_for_delivery",
   "delivered",
   "cancelled",
+];
+
+const CARRIERS = [
+  "DHL",
+  "FedEx",
+  "BlueDart",
+  "DTDC",
+  "India Post",
+  "Delhivery",
+  "Ekart",
+  "Xpressbees",
+  "Other",
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -43,6 +69,138 @@ function formatDate(ts: bigint): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function ShippingEditor({
+  orderId,
+  currentCarrier,
+  currentTracking,
+}: {
+  orderId: string;
+  currentCarrier: string;
+  currentTracking: string;
+}) {
+  const updateShipping = useUpdateShippingDetails();
+  const [carrier, setCarrier] = useState(currentCarrier || "");
+  const [tracking, setTracking] = useState(currentTracking || "");
+  const [open, setOpen] = useState(false);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!carrier) {
+      toast.error("Please select a carrier");
+      return;
+    }
+    if (!tracking.trim()) {
+      toast.error("Please enter a tracking number");
+      return;
+    }
+    try {
+      await updateShipping.mutateAsync({
+        orderId,
+        trackingNumber: tracking.trim(),
+        shippingCarrier: carrier,
+      });
+      toast.success("Shipping details updated!");
+      setOpen(false);
+    } catch {
+      toast.error("Failed to update shipping details");
+    }
+  };
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border">
+      {/* Show current tracking info */}
+      {currentTracking && (
+        <div className="flex items-center gap-2 mb-2">
+          <Truck className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-body text-muted-foreground">
+            {currentCarrier && (
+              <span className="font-medium text-foreground">
+                {currentCarrier}
+              </span>
+            )}
+            {currentCarrier && " · "}
+            <span className="font-mono">{currentTracking}</span>
+          </span>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className="flex items-center gap-1.5 text-xs text-primary hover:underline font-body"
+      >
+        <MapPin className="w-3.5 h-3.5" />
+        {open ? "Hide" : currentTracking ? "Update Shipping" : "Add Tracking"}
+        {open ? (
+          <ChevronUp className="w-3 h-3" />
+        ) : (
+          <ChevronDown className="w-3 h-3" />
+        )}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.form
+            key="shipping-form"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            onSubmit={handleSave}
+            className="mt-3 space-y-3 overflow-hidden"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="font-body text-xs mb-1 block">Carrier</Label>
+                <Select value={carrier} onValueChange={setCarrier}>
+                  <SelectTrigger className="font-body text-xs h-8">
+                    <SelectValue placeholder="Select carrier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CARRIERS.map((c) => (
+                      <SelectItem
+                        key={c}
+                        value={c}
+                        className="font-body text-xs"
+                      >
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="font-body text-xs mb-1 block">
+                  Tracking Number
+                </Label>
+                <Input
+                  value={tracking}
+                  onChange={(e) => setTracking(e.target.value)}
+                  placeholder="e.g. 1234567890"
+                  className="font-mono text-xs h-8"
+                />
+              </div>
+            </div>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={updateShipping.isPending}
+              className="gap-2 font-body text-xs h-8"
+            >
+              {updateShipping.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              {updateShipping.isPending ? "Saving…" : "Save Tracking"}
+            </Button>
+          </motion.form>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 export default function AdminOrders() {
@@ -166,6 +324,13 @@ export default function AdminOrders() {
                   </Select>
                 </div>
               </div>
+
+              {/* Shipping details editor */}
+              <ShippingEditor
+                orderId={order.id}
+                currentCarrier={order.shippingCarrier || ""}
+                currentTracking={order.trackingNumber || ""}
+              />
             </motion.div>
           ))}
         </div>
