@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-router";
 import Footer from "./components/Footer";
 import Header from "./components/Header";
+import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "./contexts/CartContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
@@ -28,76 +29,89 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import AdminOffers from "./pages/admin/AdminOffers";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminProducts from "./pages/admin/AdminProducts";
+import AdminReviews from "./pages/admin/AdminReviews";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminTrends from "./pages/admin/AdminTrends";
 
-// Root layout with header and footer
+// Root layout — wraps ALL routes (provides AuthProvider, ThemeProvider, CartProvider, Toaster)
 const rootRoute = createRootRoute({
   component: () => (
-    <ThemeProvider>
-      <CartProvider>
-        <div className="flex flex-col min-h-screen">
-          <Header />
-          <div className="flex-1">
-            <Outlet />
-          </div>
-          <Footer />
-        </div>
-        <Toaster richColors position="top-right" />
-      </CartProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider>
+        <CartProvider>
+          <Outlet />
+          <Toaster richColors position="top-right" />
+        </CartProvider>
+      </ThemeProvider>
+    </AuthProvider>
   ),
 });
 
-// Main routes
-const indexRoute = createRoute({
+// Store layout — header + footer wrapper for public/customer pages
+const storeLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
+  id: "store",
+  component: () => (
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <div className="flex-1">
+        <Outlet />
+      </div>
+      <Footer />
+    </div>
+  ),
+});
+
+// Main routes — all under store layout
+const indexRoute = createRoute({
+  getParentRoute: () => storeLayoutRoute,
   path: "/",
   component: HomePage,
 });
 
 const shopRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => storeLayoutRoute,
   path: "/shop",
   component: ShopPage,
 });
 
 const productDetailRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => storeLayoutRoute,
   path: "/product/$id",
   component: ProductDetailPage,
 });
 
 const cartRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => storeLayoutRoute,
   path: "/cart",
   component: CartPage,
 });
 
 const orderSuccessRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => storeLayoutRoute,
   path: "/order-success",
   component: OrderSuccessPage,
 });
 
 const ordersRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => storeLayoutRoute,
   path: "/orders",
   component: OrdersPage,
 });
 
 const profileRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => storeLayoutRoute,
   path: "/profile",
   component: ProfilePage,
 });
 
 const contactRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => storeLayoutRoute,
   path: "/contact",
   component: ContactPage,
 });
 
-// Admin routes — uses AdminLayout which has its own sidebar
+// Admin routes — directly under rootRoute (NO header/footer from store layout)
 const adminLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin",
@@ -140,15 +154,29 @@ const adminSettingsRoute = createRoute({
   component: AdminSettings,
 });
 
+const adminTrendsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/trends",
+  component: AdminTrends,
+});
+
+const adminReviewsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/reviews",
+  component: AdminReviews,
+});
+
 const routeTree = rootRoute.addChildren([
-  indexRoute,
-  shopRoute,
-  productDetailRoute,
-  cartRoute,
-  orderSuccessRoute,
-  ordersRoute,
-  profileRoute,
-  contactRoute,
+  storeLayoutRoute.addChildren([
+    indexRoute,
+    shopRoute,
+    productDetailRoute,
+    cartRoute,
+    orderSuccessRoute,
+    ordersRoute,
+    profileRoute,
+    contactRoute,
+  ]),
   adminLayoutRoute.addChildren([
     adminIndexRoute,
     adminProductsRoute,
@@ -156,6 +184,8 @@ const routeTree = rootRoute.addChildren([
     adminCustomersRoute,
     adminOffersRoute,
     adminSettingsRoute,
+    adminTrendsRoute,
+    adminReviewsRoute,
   ]),
 ]);
 

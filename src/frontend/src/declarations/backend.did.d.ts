@@ -17,6 +17,13 @@ export interface ContactInfo {
   'phone' : string,
 }
 export type ExternalBlob = Uint8Array;
+export interface MaskedPaymentGateway {
+  'id' : string,
+  'maskedSecretKey' : string,
+  'name' : string,
+  'isActive' : boolean,
+  'maskedApiKey' : string,
+}
 export interface Offer {
   'id' : string,
   'name' : string,
@@ -31,6 +38,13 @@ export interface Order {
   'totalAmount' : bigint,
   'items' : Array<CartItem>,
   'paymentIntentId' : string,
+}
+export interface PaymentGateway {
+  'id' : string,
+  'name' : string,
+  'isActive' : boolean,
+  'secretKey' : string,
+  'apiKey' : string,
 }
 export interface Product {
   'id' : string,
@@ -48,6 +62,15 @@ export interface ProductImage {
   'blob' : ExternalBlob,
   'productId' : string,
   'uploadedAt' : Time,
+}
+export interface Review {
+  'id' : string,
+  'userName' : string,
+  'userId' : Principal,
+  'createdAt' : Time,
+  'productId' : string,
+  'comment' : string,
+  'rating' : bigint,
 }
 export interface ShoppingItem {
   'productName' : string,
@@ -119,8 +142,10 @@ export interface _SERVICE {
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addOffer' : ActorMethod<[Offer], undefined>,
+  'addPaymentGateway' : ActorMethod<[PaymentGateway], undefined>,
   'addProduct' : ActorMethod<[Product], undefined>,
   'addProductImage' : ActorMethod<[string, ExternalBlob], undefined>,
+  'addReview' : ActorMethod<[Review], undefined>,
   'addToCart' : ActorMethod<[CartItem], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'classifyImage' : ActorMethod<[string], string>,
@@ -130,15 +155,21 @@ export interface _SERVICE {
     string
   >,
   'deleteOffer' : ActorMethod<[string], undefined>,
+  'deletePaymentGateway' : ActorMethod<[string], undefined>,
   'deleteProduct' : ActorMethod<[string], undefined>,
+  'deleteReview' : ActorMethod<[string], undefined>,
   'getActiveOffers' : ActorMethod<[], Array<Offer>>,
+  'getActivePaymentGateways' : ActorMethod<[], Array<MaskedPaymentGateway>>,
   'getAllOrders' : ActorMethod<[], Array<Order>>,
+  'getAllPaymentGateways' : ActorMethod<[], Array<PaymentGateway>>,
+  'getAllReviews' : ActorMethod<[], Array<Review>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getContactInfo' : ActorMethod<[], ContactInfo>,
   'getMyCart' : ActorMethod<[], Array<CartItem>>,
   'getMyOrders' : ActorMethod<[], Array<Order>>,
   'getProductImages' : ActorMethod<[string], Array<ProductImage>>,
+  'getProductReviews' : ActorMethod<[string], Array<Review>>,
   'getProducts' : ActorMethod<[], Array<Product>>,
   'getStripeSessionStatus' : ActorMethod<[string], StripeSessionStatus>,
   'getThemePreference' : ActorMethod<[], ThemePreference>,
@@ -153,6 +184,7 @@ export interface _SERVICE {
   'transform' : ActorMethod<[TransformationInput], TransformationOutput>,
   'updateOffer' : ActorMethod<[Offer], undefined>,
   'updateOrderStatus' : ActorMethod<[string, string], undefined>,
+  'updatePaymentGateway' : ActorMethod<[PaymentGateway], undefined>,
   'updateProduct' : ActorMethod<[Product], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

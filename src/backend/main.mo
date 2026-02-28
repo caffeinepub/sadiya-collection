@@ -6,12 +6,12 @@ import Array "mo:core/Array";
 import Time "mo:core/Time";
 import OutCall "http-outcalls/outcall";
 import Stripe "stripe/stripe";
-import AccessControl "authorization/access-control";
-import MixinAuthorization "authorization/MixinAuthorization";
 import Principal "mo:core/Principal";
 import Order "mo:core/Order";
 import Storage "blob-storage/Storage";
 import MixinStorage "blob-storage/Mixin";
+import AccessControl "authorization/access-control";
+import MixinAuthorization "authorization/MixinAuthorization";
 
 actor {
   // Mixins
@@ -226,6 +226,12 @@ actor {
     isActive : Bool;
   };
 
+  module Offer {
+    public func compare(o1 : Offer, o2 : Offer) : Order.Order {
+      Text.compare(o1.name, o2.name);
+    };
+  };
+
   let offers = Map.empty<Text, Offer>();
 
   public query ({ caller }) func getActiveOffers() : async [Offer] {
@@ -253,7 +259,7 @@ actor {
     offers.remove(offerId);
   };
 
-  // Theme Preference
+  // Theme preference
   type ThemePreference = {
     themeName : Text;
   };
@@ -354,7 +360,10 @@ actor {
     stripeConfig := ?config;
   };
 
-  public func getStripeSessionStatus(sessionId : Text) : async Stripe.StripeSessionStatus {
+  public shared ({ caller }) func getStripeSessionStatus(sessionId : Text) : async Stripe.StripeSessionStatus {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can get session status");
+    };
     switch (stripeConfig) {
       case (null) { Runtime.trap("Stripe needs to be configured") };
       case (?config) { await Stripe.getSessionStatus(config, sessionId, transform) };
@@ -375,6 +384,115 @@ actor {
 
   public query func transform(input : OutCall.TransformationInput) : async OutCall.TransformationOutput {
     OutCall.transform(input);
+  };
+
+  // PAYMENT GATEWAYS
+
+  public type PaymentGateway = {
+    id : Text;
+    name : Text;
+    apiKey : Text;
+    secretKey : Text;
+    isActive : Bool;
+  };
+
+  let paymentGateways = Map.empty<Text, PaymentGateway>();
+
+  public type MaskedPaymentGateway = {
+    id : Text;
+    name : Text;
+    isActive : Bool;
+    maskedApiKey : Text;
+    maskedSecretKey : Text;
+  };
+
+  public query ({ caller }) func getActivePaymentGateways() : async [MaskedPaymentGateway] {
+    paymentGateways.values().toArray().filter(func(pg) { pg.isActive }).map(
+      func(pg) {
+        {
+          id = pg.id;
+          name = pg.name;
+          isActive = pg.isActive;
+          maskedApiKey = "***";
+          maskedSecretKey = "***";
+        };
+      }
+    );
+  };
+
+  public query ({ caller }) func getAllPaymentGateways() : async [PaymentGateway] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can get all payment gateways");
+    };
+    paymentGateways.values().toArray();
+  };
+
+  public shared ({ caller }) func addPaymentGateway(gateway : PaymentGateway) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add payment gateways");
+    };
+    paymentGateways.add(gateway.id, gateway);
+  };
+
+  public shared ({ caller }) func updatePaymentGateway(gateway : PaymentGateway) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update payment gateways");
+    };
+    paymentGateways.add(gateway.id, gateway);
+  };
+
+  public shared ({ caller }) func deletePaymentGateway(gatewayId : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can delete payment gateways");
+    };
+    paymentGateways.remove(gatewayId);
+  };
+
+  // REVIEWS
+
+  public type Review = {
+    id : Text;
+    productId : Text;
+    userId : Principal;
+    userName : Text;
+    rating : Nat;
+    comment : Text;
+    createdAt : Time.Time;
+  };
+
+  let reviews = Map.empty<Text, Review>();
+
+  public query ({ caller }) func getProductReviews(productId : Text) : async [Review] {
+    reviews.values().toArray().filter(func(review) { review.productId == productId });
+  };
+
+  public query ({ caller }) func getAllReviews() : async [Review] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can get all reviews");
+    };
+    reviews.values().toArray();
+  };
+
+  public shared ({ caller }) func addReview(review : Review) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can add reviews");
+    };
+    if (caller != review.userId) {
+      Runtime.trap("Unauthorized: UserId does not match caller");
+    };
+    reviews.add(review.id, review);
+  };
+
+  public shared ({ caller }) func deleteReview(reviewId : Text) : async () {
+    switch (reviews.get(reviewId)) {
+      case (null) { Runtime.trap("Review not found") };
+      case (?review) {
+        if (caller != review.userId and not AccessControl.isAdmin(accessControlState, caller)) {
+          Runtime.trap("Unauthorized: Only review owner or admin can delete");
+        };
+        reviews.remove(reviewId);
+      };
+    };
   };
 
   // HTTP Outcall for Image Classification

@@ -13,7 +13,7 @@ import {
 import { motion } from "motion/react";
 import OfferBanner from "../components/OfferBanner";
 import ProductCard from "../components/ProductCard";
-import { BAG_CATEGORIES, SAMPLE_PRODUCTS } from "../data/sampleProducts";
+import { BAG_CATEGORIES } from "../data/sampleProducts";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useActiveOffers, useProducts } from "../hooks/useQueries";
 
@@ -22,8 +22,7 @@ export default function HomePage() {
   const { data: offers } = useActiveOffers();
   const { identity, login } = useInternetIdentity();
 
-  const displayProducts =
-    products && products.length > 0 ? products : SAMPLE_PRODUCTS;
+  const displayProducts = products || [];
   const featuredProducts = displayProducts
     .filter((p) => p.isActive)
     .slice(0, 8);
@@ -364,6 +363,16 @@ export default function HomePage() {
                   <Skeleton className="h-3 w-1/3" />
                 </div>
               ))}
+            </div>
+          ) : featuredProducts.length === 0 ? (
+            <div className="text-center py-12">
+              <ShoppingBag className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
+              <p className="font-display text-lg font-semibold mb-1">
+                New arrivals coming soon
+              </p>
+              <p className="text-muted-foreground font-body text-sm">
+                Products are being added — check back shortly!
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">

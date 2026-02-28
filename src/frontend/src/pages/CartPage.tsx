@@ -1,34 +1,37 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
+  CreditCard,
   Minus,
   Plus,
   ShoppingBag,
   ShoppingCart,
   Trash2,
+  Wallet,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useCart } from "../contexts/CartContext";
-import {
-  SAMPLE_PRODUCTS,
-  formatPrice,
-  getDiscountedPrice,
-} from "../data/sampleProducts";
+import { formatPrice, getDiscountedPrice } from "../data/sampleProducts";
 import { useActor } from "../hooks/useActor";
-import { useIsStripeConfigured, useProducts } from "../hooks/useQueries";
+import {
+  useActivePaymentGateways,
+  useIsStripeConfigured,
+  useProducts,
+} from "../hooks/useQueries";
 
 export default function CartPage() {
   const { items, removeItem, addItem, isLoading, clearCart } = useCart();
   const { data: products } = useProducts();
   const { data: stripeConfigured } = useIsStripeConfigured();
+  const { data: activeGateways } = useActivePaymentGateways();
   const { actor } = useActor();
 
-  const allProducts =
-    products && products.length > 0 ? products : SAMPLE_PRODUCTS;
+  const allProducts = products || [];
 
   const cartProducts = items
     .map((item) => {
@@ -49,15 +52,46 @@ export default function CartPage() {
   const shippingFee = subtotal >= 99900n ? 0n : 9900n; // Free shipping above ₹999
   const total = subtotal + shippingFee;
 
+  // Payment method selection
+  const stripeOption = stripeConfigured ? "stripe" : null;
+  const gatewayOptions = (activeGateways || []).filter((g) => g.isActive);
+  const allPaymentOptions = [
+    ...(stripeOption ? [{ id: "stripe", name: "Stripe" }] : []),
+    ...gatewayOptions.map((g) => ({ id: g.id, name: g.name })),
+  ];
+
+  const [selectedPayment, setSelectedPayment] = useState<string>(
+    stripeOption ?? gatewayOptions[0]?.id ?? "",
+  );
+
   const handleCheckout = async () => {
     if (!actor) {
       toast.error("Please sign in to checkout");
       return;
     }
-    if (!stripeConfigured) {
+
+    if (!stripeConfigured && gatewayOptions.length === 0) {
       toast.error("Payment gateway not configured. Please contact support.");
       return;
     }
+
+    // If a manual gateway is selected, show info toast then proceed
+    const isManualGateway =
+      selectedPayment !== "stripe" &&
+      gatewayOptions.some((g) => g.id === selectedPayment);
+
+    if (isManualGateway) {
+      const gw = gatewayOptions.find((g) => g.id === selectedPayment);
+      toast.info(
+        `Payment gateway selected: ${gw?.name}. Redirecting to checkout…`,
+      );
+    }
+
+    if (!stripeConfigured) {
+      toast.error("Stripe is not configured yet. Please contact support.");
+      return;
+    }
+
     try {
       const shoppingItems = cartProducts.map(({ item, product }) => {
         const p = product!;
@@ -305,17 +339,63 @@ export default function CartPage() {
                   </div>
                 </div>
 
+                {/* Payment Method Selection */}
+                {allPaymentOptions.length > 0 && (
+                  <div className="mt-4">
+                    <p className="font-body text-sm font-medium mb-2 flex items-center gap-1.5">
+                      <Wallet className="w-4 h-4 text-primary" />
+                      Select Payment Method
+                    </p>
+                    <div className="space-y-2">
+                      {allPaymentOptions.map((opt) => (
+                        <label
+                          key={opt.id}
+                          className={`flex items-center gap-3 p-2.5 rounded-md border cursor-pointer transition-colors ${
+                            selectedPayment === opt.id
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-primary/50"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            value={opt.id}
+                            checked={selectedPayment === opt.id}
+                            onChange={() => setSelectedPayment(opt.id)}
+                            className="accent-primary"
+                          />
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="w-4 h-4 text-muted-foreground" />
+                            <span className="font-body text-sm font-medium">
+                              {opt.name}
+                            </span>
+                          </div>
+                          {selectedPayment === opt.id && (
+                            <Badge className="ml-auto text-xs bg-primary/10 text-primary border-primary/20">
+                              Selected
+                            </Badge>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <Button
                   size="lg"
                   onClick={handleCheckout}
                   className="w-full mt-5 gap-2 btn-ripple font-body"
                 >
-                  Proceed to Checkout
+                  {selectedPayment && selectedPayment !== "stripe"
+                    ? `Pay with ${allPaymentOptions.find((o) => o.id === selectedPayment)?.name ?? "Gateway"}`
+                    : "Proceed to Checkout"}
                   <ArrowRight className="w-4 h-4" />
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center mt-3 font-body">
-                  Secure checkout powered by Stripe
+                  {selectedPayment === "stripe" || !selectedPayment
+                    ? "Secure checkout powered by Stripe"
+                    : `Payment via ${allPaymentOptions.find((o) => o.id === selectedPayment)?.name ?? "selected gateway"}`}
                 </p>
               </div>
             </motion.div>

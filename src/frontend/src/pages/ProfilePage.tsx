@@ -3,21 +3,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, LogOut, Mail, MapPin, Phone, Save, User } from "lucide-react";
+import { LogIn, LogOut, Mail, MapPin, Phone, Save, User } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import AuthModal from "../components/AuthModal";
+import { useAuth } from "../contexts/AuthContext";
 import { useSaveProfile, useUserProfile } from "../hooks/useQueries";
 
 export default function ProfilePage() {
-  const { identity, login, clear } = useInternetIdentity();
+  const { isAuthenticated, currentUser, logout } = useAuth();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const { data: profile, isLoading } = useUserProfile();
   const saveProfile = useSaveProfile();
 
   const [form, setForm] = useState({
-    name: "",
-    email: "",
+    name: currentUser?.name || "",
+    email: currentUser?.email || "",
     phone: "",
     address: "",
   });
@@ -25,13 +27,19 @@ export default function ProfilePage() {
   useEffect(() => {
     if (profile) {
       setForm({
-        name: profile.name || "",
-        email: profile.email || "",
+        name: profile.name || currentUser?.name || "",
+        email: profile.email || currentUser?.email || "",
         phone: profile.phone || "",
         address: profile.address || "",
       });
+    } else if (currentUser) {
+      setForm((f) => ({
+        ...f,
+        name: currentUser.name,
+        email: currentUser.email,
+      }));
     }
-  }, [profile]);
+  }, [profile, currentUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,24 +55,31 @@ export default function ProfilePage() {
     }
   };
 
-  if (!identity) {
+  if (!isAuthenticated) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto px-4">
-          <User className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-          <h1 className="font-display text-3xl font-bold mb-3">My Profile</h1>
-          <p className="text-muted-foreground font-body mb-6">
-            Sign in to view and edit your profile
-          </p>
-          <Button
-            onClick={login}
-            size="lg"
-            className="gap-2 font-body btn-ripple"
-          >
-            Sign In
-          </Button>
-        </div>
-      </main>
+      <>
+        <main className="min-h-screen flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto px-4">
+            <User className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+            <h1 className="font-display text-3xl font-bold mb-3">My Profile</h1>
+            <p className="text-muted-foreground font-body mb-6">
+              Sign in to view and edit your profile
+            </p>
+            <Button
+              onClick={() => setAuthModalOpen(true)}
+              size="lg"
+              className="gap-2 font-body btn-ripple"
+            >
+              <LogIn className="w-4 h-4" />
+              Sign In
+            </Button>
+          </div>
+        </main>
+        <AuthModal
+          open={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+        />
+      </>
     );
   }
 
@@ -79,12 +94,17 @@ export default function ProfilePage() {
             <div>
               <h1 className="font-display text-3xl font-bold">My Profile</h1>
               <p className="text-muted-foreground font-body text-sm mt-1">
-                Principal: {identity.getPrincipal().toString().slice(0, 20)}…
+                {currentUser?.email}
+                {currentUser?.isAdmin && (
+                  <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
+                    Admin
+                  </span>
+                )}
               </p>
             </div>
             <Button
               variant="ghost"
-              onClick={clear}
+              onClick={logout}
               size="sm"
               className="gap-1.5 text-muted-foreground font-body"
             >
@@ -194,7 +214,7 @@ export default function ProfilePage() {
                   disabled={saveProfile.isPending}
                 >
                   {saveProfile.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <Save className="w-4 h-4" />
                   )}

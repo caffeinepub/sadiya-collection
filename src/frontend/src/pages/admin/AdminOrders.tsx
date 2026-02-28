@@ -9,7 +9,7 @@ import {
 import { Clock, Package } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
-import { SAMPLE_PRODUCTS, formatPrice } from "../../data/sampleProducts";
+import { formatPrice } from "../../data/sampleProducts";
 import {
   useAllOrders,
   useProducts,
@@ -51,7 +51,7 @@ export default function AdminOrders() {
   const { data: products } = useProducts();
 
   const allOrders = orders || [];
-  const allProducts = products || SAMPLE_PRODUCTS;
+  const allProducts = products || [];
 
   const handleStatusChange = async (orderId: string, status: string) => {
     try {

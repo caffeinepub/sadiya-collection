@@ -9,12 +9,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, ShoppingBag, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useMemo, useState } from "react";
 import OfferBanner from "../components/OfferBanner";
 import ProductCard from "../components/ProductCard";
-import { BAG_CATEGORIES, SAMPLE_PRODUCTS } from "../data/sampleProducts";
+import { ALL_CATEGORIES } from "../data/sampleProducts";
 import { useActiveOffers, useProducts } from "../hooks/useQueries";
 
 export default function ShopPage() {
@@ -24,13 +24,11 @@ export default function ShopPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [sortBy, setSortBy] = useState("featured");
-  const [showFilters, setShowFilters] = useState(false);
 
   const { data: products, isLoading } = useProducts();
   const { data: offers } = useActiveOffers();
 
-  const displayProducts =
-    products && products.length > 0 ? products : SAMPLE_PRODUCTS;
+  const displayProducts = products || [];
 
   const filtered = useMemo(() => {
     let result = displayProducts.filter((p) => p.isActive);
@@ -74,7 +72,7 @@ export default function ShopPage() {
       {offers && <OfferBanner offers={offers} />}
 
       {/* Header */}
-      <div className="bg-muted/30 py-10 border-b border-border">
+      <div className="bg-muted/30 py-8 md:py-10 border-b border-border">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -83,8 +81,8 @@ export default function ShopPage() {
             <p className="text-xs uppercase tracking-widest text-muted-foreground font-body mb-1">
               Browse
             </p>
-            <h1 className="font-display text-4xl font-bold text-foreground">
-              All Bags
+            <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground">
+              All Products
             </h1>
             <p className="font-accent italic text-muted-foreground mt-1">
               {filtered.length} product{filtered.length !== 1 ? "s" : ""} found
@@ -93,15 +91,15 @@ export default function ShopPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Filters Bar */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      <div className="container mx-auto px-4 py-6 md:py-8">
+        {/* Search + Sort Bar */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-5">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search bags..."
+              placeholder="Search products..."
               className="pl-9 font-body"
             />
             {searchQuery && (
@@ -127,66 +125,35 @@ export default function ShopPage() {
               <SelectItem value="discount">Best Discount</SelectItem>
             </SelectContent>
           </Select>
-
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters((f) => !f)}
-            className="gap-2 font-body sm:w-auto"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            Filters
-          </Button>
         </div>
 
-        {/* Category filters */}
-        {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mb-6"
-          >
-            <div className="flex flex-wrap gap-2">
-              {BAG_CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat)}
-                  className="focus:outline-none"
+        {/* Category Filter — always visible, scrollable on mobile */}
+        <div className="mb-6">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-body mb-2">
+            Filter by Category
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {ALL_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className="focus:outline-none"
+              >
+                <Badge
+                  variant={selectedCategory === cat ? "default" : "outline"}
+                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors font-body text-xs py-1 px-3"
                 >
-                  <Badge
-                    variant={selectedCategory === cat ? "default" : "outline"}
-                    className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors font-body text-xs py-1 px-3"
-                  >
-                    {cat}
-                  </Badge>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Category quick pills (always visible, horizontal scroll) */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-6 no-scrollbar">
-          {BAG_CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setSelectedCategory(cat)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-body font-medium border transition-all ${
-                selectedCategory === cat
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card text-card-foreground border-border hover:border-primary"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+                  {cat}
+                </Badge>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Products Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: static loading skeleton
               <div key={i} className="space-y-2">
@@ -196,16 +163,30 @@ export default function ShopPage() {
               </div>
             ))}
           </div>
+        ) : displayProducts.length === 0 ? (
+          /* Shop is empty — no products added yet */
+          <div className="text-center py-20">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+              <ShoppingBag className="w-8 h-8 text-muted-foreground/50" />
+            </div>
+            <h2 className="font-display text-xl font-semibold mb-2">
+              No products available yet
+            </h2>
+            <p className="text-muted-foreground font-body text-sm">
+              Check back soon — new products are being added!
+            </p>
+          </div>
         ) : filtered.length === 0 ? (
+          /* No products match filter/search */
           <div className="text-center py-20">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
               <Search className="w-8 h-8 text-muted-foreground" />
             </div>
             <h2 className="font-display text-xl font-semibold mb-2">
-              No bags found
+              No products found
             </h2>
             <p className="text-muted-foreground font-body text-sm mb-4">
-              Try adjusting your search or filters
+              Try adjusting your search or category filter
             </p>
             <Button
               variant="outline"
@@ -218,7 +199,7 @@ export default function ShopPage() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {filtered.map((product, i) => (
               <ProductCard key={product.id} product={product} index={i} />
             ))}

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, ShoppingBag, Tag, TrendingUp, Users } from "lucide-react";
+import { Package, ShoppingBag, Tag, TrendingUp } from "lucide-react";
 import { motion } from "motion/react";
-import { SAMPLE_PRODUCTS, formatPrice } from "../../data/sampleProducts";
+import { formatPrice } from "../../data/sampleProducts";
 import {
   useActiveOffers,
   useAllOrders,
@@ -13,7 +13,7 @@ export default function AdminDashboard() {
   const { data: orders } = useAllOrders();
   const { data: offers } = useActiveOffers();
 
-  const allProducts = products || SAMPLE_PRODUCTS;
+  const allProducts = products || [];
   const allOrders = orders || [];
   const activeOffers = offers || [];
 
@@ -153,36 +153,48 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {allProducts.slice(0, 5).map((product) => (
-                <div
-                  key={product.id}
-                  className="flex items-center gap-3 py-1.5"
-                >
-                  <div className="w-10 h-10 rounded-md overflow-hidden bg-muted shrink-0">
-                    <img
-                      src={
-                        product.imageUrls[0] ||
-                        "/assets/generated/bag-handbag.dim_600x600.jpg"
-                      }
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-body text-sm font-medium line-clamp-1">
-                      {product.name}
+            {allProducts.length === 0 ? (
+              <div className="py-6 text-center">
+                <ShoppingBag className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
+                <p className="text-muted-foreground font-body text-sm font-medium">
+                  No products yet.
+                </p>
+                <p className="text-muted-foreground font-body text-xs mt-1">
+                  Add your first product in the Products tab.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {allProducts.slice(0, 5).map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-3 py-1.5"
+                  >
+                    <div className="w-10 h-10 rounded-md overflow-hidden bg-muted shrink-0">
+                      <img
+                        src={
+                          product.imageUrls[0] ||
+                          "/assets/generated/bag-handbag.dim_600x600.jpg"
+                        }
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-body text-sm font-medium line-clamp-1">
+                        {product.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground font-body">
+                        {product.category}
+                      </p>
+                    </div>
+                    <p className="font-display font-semibold text-sm shrink-0">
+                      {formatPrice(product.price)}
                     </p>
-                    <p className="text-xs text-muted-foreground font-body">
-                      {product.category}
-                    </p>
                   </div>
-                  <p className="font-display font-semibold text-sm shrink-0">
-                    {formatPrice(product.price)}
-                  </p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

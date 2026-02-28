@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, Clock, Package, ShoppingBag } from "lucide-react";
 import { motion } from "motion/react";
-import { SAMPLE_PRODUCTS, formatPrice } from "../data/sampleProducts";
+import { formatPrice } from "../data/sampleProducts";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useMyOrders } from "../hooks/useQueries";
 import { useProducts } from "../hooks/useQueries";
@@ -41,8 +41,7 @@ export default function OrdersPage() {
   const { data: orders, isLoading } = useMyOrders();
   const { data: products } = useProducts();
 
-  const allProducts =
-    products && products.length > 0 ? products : SAMPLE_PRODUCTS;
+  const allProducts = products || [];
 
   if (!identity) {
     return (

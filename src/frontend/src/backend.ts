@@ -89,6 +89,15 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface Review {
+    id: string;
+    userName: string;
+    userId: Principal;
+    createdAt: Time;
+    productId: string;
+    comment: string;
+    rating: bigint;
+}
 export interface Product {
     id: string;
     stockQuantity: bigint;
@@ -100,6 +109,13 @@ export interface Product {
     isActive: boolean;
     category: string;
     price: bigint;
+}
+export interface PaymentGateway {
+    id: string;
+    name: string;
+    isActive: boolean;
+    secretKey: string;
+    apiKey: string;
 }
 export interface TransformationOutput {
     status: bigint;
@@ -136,6 +152,13 @@ export interface http_request_result {
     status: bigint;
     body: Uint8Array;
     headers: Array<http_header>;
+}
+export interface MaskedPaymentGateway {
+    id: string;
+    maskedSecretKey: string;
+    name: string;
+    isActive: boolean;
+    maskedApiKey: string;
 }
 export interface ThemePreference {
     themeName: string;
@@ -206,23 +229,31 @@ export interface backendInterface {
     _caffeineStorageUpdateGatewayPrincipals(): Promise<void>;
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addOffer(offer: Offer): Promise<void>;
+    addPaymentGateway(gateway: PaymentGateway): Promise<void>;
     addProduct(product: Product): Promise<void>;
     addProductImage(productId: string, blob: ExternalBlob): Promise<void>;
+    addReview(review: Review): Promise<void>;
     addToCart(item: CartItem): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     classifyImage(url: string): Promise<string>;
     clearCart(): Promise<void>;
     createCheckoutSession(items: Array<ShoppingItem>, successUrl: string, cancelUrl: string): Promise<string>;
     deleteOffer(offerId: string): Promise<void>;
+    deletePaymentGateway(gatewayId: string): Promise<void>;
     deleteProduct(productId: string): Promise<void>;
+    deleteReview(reviewId: string): Promise<void>;
     getActiveOffers(): Promise<Array<Offer>>;
+    getActivePaymentGateways(): Promise<Array<MaskedPaymentGateway>>;
     getAllOrders(): Promise<Array<Order>>;
+    getAllPaymentGateways(): Promise<Array<PaymentGateway>>;
+    getAllReviews(): Promise<Array<Review>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getContactInfo(): Promise<ContactInfo>;
     getMyCart(): Promise<Array<CartItem>>;
     getMyOrders(): Promise<Array<Order>>;
     getProductImages(productId: string): Promise<Array<ProductImage>>;
+    getProductReviews(productId: string): Promise<Array<Review>>;
     getProducts(): Promise<Array<Product>>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
     getThemePreference(): Promise<ThemePreference>;
@@ -237,6 +268,7 @@ export interface backendInterface {
     transform(input: TransformationInput): Promise<TransformationOutput>;
     updateOffer(offer: Offer): Promise<void>;
     updateOrderStatus(orderId: string, status: string): Promise<void>;
+    updatePaymentGateway(gateway: PaymentGateway): Promise<void>;
     updateProduct(product: Product): Promise<void>;
 }
 import type { ExternalBlob as _ExternalBlob, ProductImage as _ProductImage, StripeSessionStatus as _StripeSessionStatus, Time as _Time, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
@@ -354,6 +386,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async addPaymentGateway(arg0: PaymentGateway): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addPaymentGateway(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addPaymentGateway(arg0);
+            return result;
+        }
+    }
     async addProduct(arg0: Product): Promise<void> {
         if (this.processError) {
             try {
@@ -379,6 +425,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addProductImage(arg0, await to_candid_ExternalBlob_n8(this._uploadFile, this._downloadFile, arg1));
+            return result;
+        }
+    }
+    async addReview(arg0: Review): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addReview(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addReview(arg0);
             return result;
         }
     }
@@ -466,6 +526,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async deletePaymentGateway(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deletePaymentGateway(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deletePaymentGateway(arg0);
+            return result;
+        }
+    }
     async deleteProduct(arg0: string): Promise<void> {
         if (this.processError) {
             try {
@@ -477,6 +551,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteProduct(arg0);
+            return result;
+        }
+    }
+    async deleteReview(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteReview(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteReview(arg0);
             return result;
         }
     }
@@ -494,6 +582,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getActivePaymentGateways(): Promise<Array<MaskedPaymentGateway>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getActivePaymentGateways();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getActivePaymentGateways();
+            return result;
+        }
+    }
     async getAllOrders(): Promise<Array<Order>> {
         if (this.processError) {
             try {
@@ -505,6 +607,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getAllOrders();
+            return result;
+        }
+    }
+    async getAllPaymentGateways(): Promise<Array<PaymentGateway>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllPaymentGateways();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllPaymentGateways();
+            return result;
+        }
+    }
+    async getAllReviews(): Promise<Array<Review>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllReviews();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllReviews();
             return result;
         }
     }
@@ -590,6 +720,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getProductImages(arg0);
             return from_candid_vec_n14(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getProductReviews(arg0: string): Promise<Array<Review>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getProductReviews(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getProductReviews(arg0);
+            return result;
         }
     }
     async getProducts(): Promise<Array<Product>> {
@@ -785,6 +929,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.updateOrderStatus(arg0, arg1);
+            return result;
+        }
+    }
+    async updatePaymentGateway(arg0: PaymentGateway): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updatePaymentGateway(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updatePaymentGateway(arg0);
             return result;
         }
     }

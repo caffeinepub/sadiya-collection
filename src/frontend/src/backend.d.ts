@@ -14,6 +14,15 @@ export class ExternalBlob {
     static fromBytes(blob: Uint8Array<ArrayBuffer>): ExternalBlob;
     withUploadProgress(onProgress: (percentage: number) => void): ExternalBlob;
 }
+export interface Review {
+    id: string;
+    userName: string;
+    userId: Principal;
+    createdAt: Time;
+    productId: string;
+    comment: string;
+    rating: bigint;
+}
 export interface Product {
     id: string;
     stockQuantity: bigint;
@@ -25,6 +34,13 @@ export interface Product {
     isActive: boolean;
     category: string;
     price: bigint;
+}
+export interface PaymentGateway {
+    id: string;
+    name: string;
+    isActive: boolean;
+    secretKey: string;
+    apiKey: string;
 }
 export interface TransformationOutput {
     status: bigint;
@@ -54,6 +70,13 @@ export interface http_request_result {
     status: bigint;
     body: Uint8Array;
     headers: Array<http_header>;
+}
+export interface MaskedPaymentGateway {
+    id: string;
+    maskedSecretKey: string;
+    name: string;
+    isActive: boolean;
+    maskedApiKey: string;
 }
 export interface ThemePreference {
     themeName: string;
@@ -113,23 +136,31 @@ export enum UserRole {
 }
 export interface backendInterface {
     addOffer(offer: Offer): Promise<void>;
+    addPaymentGateway(gateway: PaymentGateway): Promise<void>;
     addProduct(product: Product): Promise<void>;
     addProductImage(productId: string, blob: ExternalBlob): Promise<void>;
+    addReview(review: Review): Promise<void>;
     addToCart(item: CartItem): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     classifyImage(url: string): Promise<string>;
     clearCart(): Promise<void>;
     createCheckoutSession(items: Array<ShoppingItem>, successUrl: string, cancelUrl: string): Promise<string>;
     deleteOffer(offerId: string): Promise<void>;
+    deletePaymentGateway(gatewayId: string): Promise<void>;
     deleteProduct(productId: string): Promise<void>;
+    deleteReview(reviewId: string): Promise<void>;
     getActiveOffers(): Promise<Array<Offer>>;
+    getActivePaymentGateways(): Promise<Array<MaskedPaymentGateway>>;
     getAllOrders(): Promise<Array<Order>>;
+    getAllPaymentGateways(): Promise<Array<PaymentGateway>>;
+    getAllReviews(): Promise<Array<Review>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getContactInfo(): Promise<ContactInfo>;
     getMyCart(): Promise<Array<CartItem>>;
     getMyOrders(): Promise<Array<Order>>;
     getProductImages(productId: string): Promise<Array<ProductImage>>;
+    getProductReviews(productId: string): Promise<Array<Review>>;
     getProducts(): Promise<Array<Product>>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
     getThemePreference(): Promise<ThemePreference>;
@@ -144,5 +175,6 @@ export interface backendInterface {
     transform(input: TransformationInput): Promise<TransformationOutput>;
     updateOffer(offer: Offer): Promise<void>;
     updateOrderStatus(orderId: string, status: string): Promise<void>;
+    updatePaymentGateway(gateway: PaymentGateway): Promise<void>;
     updateProduct(product: Product): Promise<void>;
 }

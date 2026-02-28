@@ -107,8 +107,9 @@ export const SAMPLE_PRODUCTS: Product[] = [
   },
 ];
 
-export const BAG_CATEGORIES = [
+export const ALL_CATEGORIES = [
   "All",
+  // Bags
   "Handbags",
   "Backpacks",
   "Tote Bags",
@@ -119,7 +120,60 @@ export const BAG_CATEGORIES = [
   "Wallets",
   "Duffle Bags",
   "Kids Bags",
+  // Clothing
+  "Men's Clothing",
+  "Women's Clothing",
+  "Kids Clothing",
+  "Traditional Wear",
+  "Sportswear",
+  // Footwear
+  "Men's Shoes",
+  "Women's Shoes",
+  "Sandals",
+  "Sports Shoes",
+  "Kids Footwear",
+  // Accessories
+  "Sunglasses",
+  "Belts",
+  "Scarves",
+  "Caps & Hats",
+  "Ties",
+  // Jewelry
+  "Necklaces",
+  "Earrings",
+  "Bracelets",
+  "Rings",
+  "Bangles",
+  // Home & Lifestyle
+  "Home Decor",
+  "Bedding",
+  "Kitchen Items",
+  "Candles & Fragrance",
+  // Electronics
+  "Mobile Accessories",
+  "Earphones",
+  "Smartwatches",
+  // Beauty & Personal Care
+  "Skincare",
+  "Makeup",
+  "Haircare",
+  "Perfumes",
+  // Sports & Fitness
+  "Gym Equipment",
+  "Yoga",
+  "Outdoor Sports",
+  // Books & Stationery
+  "Books",
+  "Notebooks",
+  "Art Supplies",
+  // Toys & Kids
+  "Toys",
+  "Educational Games",
+  "Baby Products",
 ];
+
+// Backward compatibility alias
+export const BAG_CATEGORIES = ALL_CATEGORIES;
 
 export function formatPrice(paise: bigint): string {
   const rupees = Number(paise) / 100;

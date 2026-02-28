@@ -2,9 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CartItem,
   ContactInfo,
+  MaskedPaymentGateway,
   Offer,
   Order,
+  PaymentGateway,
   Product,
+  Review,
   UserProfile,
 } from "../backend.d";
 import { useActor } from "./useActor";
@@ -216,6 +219,118 @@ export function usePlaceOrder() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["myOrders"] });
     },
+  });
+}
+
+// ─── Payment Gateways ───
+export function useActivePaymentGateways() {
+  const { actor, isFetching } = useActor();
+  return useQuery<MaskedPaymentGateway[]>({
+    queryKey: ["activePaymentGateways"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getActivePaymentGateways();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAllPaymentGateways() {
+  const { actor, isFetching } = useActor();
+  return useQuery<PaymentGateway[]>({
+    queryKey: ["paymentGateways"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllPaymentGateways();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddPaymentGateway() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (gateway: PaymentGateway) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.addPaymentGateway(gateway);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["paymentGateways"] }),
+  });
+}
+
+export function useUpdatePaymentGateway() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (gateway: PaymentGateway) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.updatePaymentGateway(gateway);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["paymentGateways"] }),
+  });
+}
+
+export function useDeletePaymentGateway() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (gatewayId: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.deletePaymentGateway(gatewayId);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["paymentGateways"] }),
+  });
+}
+
+// ─── Reviews ───
+export function useProductReviews(productId: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<Review[]>({
+    queryKey: ["reviews", productId],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getProductReviews(productId);
+    },
+    enabled: !!actor && !isFetching && !!productId,
+  });
+}
+
+export function useAllReviews() {
+  const { actor, isFetching } = useActor();
+  return useQuery<Review[]>({
+    queryKey: ["allReviews"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllReviews();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddReview() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (review: Review) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.addReview(review);
+    },
+    onSuccess: (_data, review) => {
+      qc.invalidateQueries({ queryKey: ["reviews", review.productId] });
+    },
+  });
+}
+
+export function useDeleteReview() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (reviewId: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.deleteReview(reviewId);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["allReviews"] }),
   });
 }
 

@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { useParams } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import {
@@ -8,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  MessageSquare,
   Shield,
   ShoppingCart,
   Star,
@@ -17,27 +19,35 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "../contexts/AuthContext";
 import { useCart } from "../contexts/CartContext";
-import {
-  SAMPLE_PRODUCTS,
-  formatPrice,
-  getDiscountedPrice,
-} from "../data/sampleProducts";
+import { formatPrice, getDiscountedPrice } from "../data/sampleProducts";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { useProducts } from "../hooks/useQueries";
+import {
+  useAddReview,
+  useProductReviews,
+  useProducts,
+} from "../hooks/useQueries";
 
 export default function ProductDetailPage() {
-  const { id } = useParams({ from: "/product/$id" });
+  const { id } = useParams({ from: "/store/product/$id" });
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [addedAnim, setAddedAnim] = useState(false);
 
+  // Review form state
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [hoverRating, setHoverRating] = useState(0);
+
   const { data: products } = useProducts();
+  const { data: reviews, isLoading: reviewsLoading } = useProductReviews(id);
+  const addReview = useAddReview();
   const { addItem, isLoading } = useCart();
   const { identity, login } = useInternetIdentity();
+  const { currentUser } = useAuth();
 
-  const allProducts =
-    products && products.length > 0 ? products : SAMPLE_PRODUCTS;
+  const allProducts = products || [];
   const product = allProducts.find((p) => p.id === id);
 
   if (!product) {
@@ -53,7 +63,7 @@ export default function ProductDetailPage() {
           This product may have been removed or the link is invalid.
         </p>
         <Link to="/shop">
-          <Button>Browse All Bags</Button>
+          <Button>Browse All Products</Button>
         </Link>
       </div>
     );
@@ -69,6 +79,13 @@ export default function ProductDetailPage() {
   const savings = product.price - finalPrice;
   const isOutOfStock = product.stockQuantity === 0n;
 
+  const allReviews = reviews || [];
+  const avgRating =
+    allReviews.length > 0
+      ? allReviews.reduce((acc, r) => acc + Number(r.rating), 0) /
+        allReviews.length
+      : 0;
+
   const handleAddToCart = async () => {
     if (!identity) {
       login();
@@ -83,6 +100,43 @@ export default function ProductDetailPage() {
     } catch {
       toast.error("Failed to add to cart");
     }
+  };
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!identity) {
+      login();
+      return;
+    }
+    if (!reviewComment.trim()) {
+      toast.error("Please write a comment");
+      return;
+    }
+    try {
+      await addReview.mutateAsync({
+        id: `review-${Date.now()}`,
+        productId: id,
+        userId: identity.getPrincipal(),
+        userName: currentUser?.name || "Anonymous",
+        rating: BigInt(reviewRating),
+        comment: reviewComment.trim(),
+        createdAt: BigInt(Date.now()) * 1_000_000n,
+      });
+      toast.success("Review submitted! Thank you.");
+      setReviewComment("");
+      setReviewRating(5);
+    } catch {
+      toast.error("Failed to submit review");
+    }
+  };
+
+  const formatDate = (ns: bigint) => {
+    const ms = Number(ns) / 1_000_000;
+    return new Date(ms).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
   };
 
   return (
@@ -104,7 +158,7 @@ export default function ProductDetailPage() {
         </nav>
       </div>
 
-      <div className="container mx-auto px-4 pb-16">
+      <div className="container mx-auto px-4 pb-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* Images */}
           <motion.div
@@ -210,12 +264,18 @@ export default function ProductDetailPage() {
                 {[1, 2, 3, 4, 5].map((s) => (
                   <Star
                     key={s}
-                    className={`w-4 h-4 ${s <= 4 ? "fill-primary text-primary" : "text-muted-foreground"}`}
+                    className={`w-4 h-4 ${
+                      s <= Math.round(avgRating)
+                        ? "fill-primary text-primary"
+                        : "text-muted-foreground"
+                    }`}
                   />
                 ))}
               </div>
               <span className="text-sm text-muted-foreground font-body">
-                (4.0 · 24 reviews)
+                {allReviews.length > 0
+                  ? `(${avgRating.toFixed(1)} · ${allReviews.length} review${allReviews.length !== 1 ? "s" : ""})`
+                  : "No reviews yet"}
               </span>
             </div>
 
@@ -342,6 +402,213 @@ export default function ProductDetailPage() {
               ))}
             </div>
           </motion.div>
+        </div>
+
+        {/* ── Reviews Section ── */}
+        <div className="mt-12">
+          <Separator className="mb-8" />
+
+          <div className="flex items-center gap-2 mb-6">
+            <MessageSquare className="w-5 h-5 text-primary" />
+            <h2 className="font-display text-2xl font-bold">
+              Customer Reviews
+            </h2>
+            {allReviews.length > 0 && (
+              <Badge variant="outline" className="font-body text-xs">
+                {allReviews.length} review{allReviews.length !== 1 ? "s" : ""}
+              </Badge>
+            )}
+          </div>
+
+          {/* Aggregate Rating */}
+          {allReviews.length > 0 && (
+            <div className="flex items-center gap-4 mb-6 p-4 bg-muted/30 rounded-lg border border-border">
+              <div className="text-center">
+                <p className="font-display text-4xl font-bold">
+                  {avgRating.toFixed(1)}
+                </p>
+                <div className="flex gap-0.5 mt-1 justify-center">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star
+                      key={s}
+                      className={`w-4 h-4 ${
+                        s <= Math.round(avgRating)
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-muted-foreground/30"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground font-body mt-1">
+                  out of 5
+                </p>
+              </div>
+              <Separator orientation="vertical" className="h-16" />
+              <div className="flex-1 space-y-1">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const count = allReviews.filter(
+                    (r) => Number(r.rating) === star,
+                  ).length;
+                  const pct =
+                    allReviews.length > 0
+                      ? (count / allReviews.length) * 100
+                      : 0;
+                  return (
+                    <div key={star} className="flex items-center gap-2 text-xs">
+                      <span className="font-body text-muted-foreground w-4">
+                        {star}
+                      </span>
+                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-yellow-400 rounded-full transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="text-muted-foreground w-4">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Review list */}
+          <div className="space-y-4 mb-8">
+            {reviewsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground font-body py-4">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading reviews…
+              </div>
+            ) : allReviews.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground font-body">
+                <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p className="font-medium">No reviews yet.</p>
+                <p className="text-sm mt-1">Be the first to review!</p>
+              </div>
+            ) : (
+              <AnimatePresence>
+                {allReviews.map((review) => (
+                  <motion.div
+                    key={review.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 bg-card border border-border rounded-lg"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div>
+                        <p className="font-body font-semibold text-sm">
+                          {review.userName}
+                        </p>
+                        <div className="flex gap-0.5 mt-0.5">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className={`w-3.5 h-3.5 ${
+                                s <= Number(review.rating)
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-muted-foreground/30"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <span className="text-xs text-muted-foreground font-body shrink-0">
+                        {formatDate(review.createdAt)}
+                      </span>
+                    </div>
+                    {review.comment && (
+                      <p className="text-sm text-muted-foreground font-body leading-relaxed">
+                        {review.comment}
+                      </p>
+                    )}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            )}
+          </div>
+
+          {/* Write a Review */}
+          {identity ? (
+            <div className="bg-card border border-border rounded-lg p-5">
+              <h3 className="font-display font-semibold text-lg mb-4">
+                Write a Review
+              </h3>
+              <form onSubmit={handleSubmitReview} className="space-y-4">
+                {/* Star selector */}
+                <div>
+                  <p className="font-body text-sm font-medium mb-2">
+                    Your Rating *
+                  </p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setReviewRating(s)}
+                        onMouseEnter={() => setHoverRating(s)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        className="transition-transform hover:scale-110"
+                      >
+                        <Star
+                          className={`w-7 h-7 transition-colors ${
+                            s <= (hoverRating || reviewRating)
+                              ? "fill-yellow-400 text-yellow-400"
+                              : "text-muted-foreground/30"
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="ml-2 text-sm text-muted-foreground font-body self-center">
+                      {reviewRating} star{reviewRating !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="font-body text-sm font-medium mb-2">
+                    Your Review *
+                  </p>
+                  <Textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder="Share your experience with this product..."
+                    className="font-body resize-none"
+                    rows={4}
+                    required
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={addReview.isPending}
+                  className="gap-2 btn-ripple font-body"
+                >
+                  {addReview.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Star className="w-4 h-4" />
+                  )}
+                  {addReview.isPending ? "Submitting…" : "Submit Review"}
+                </Button>
+              </form>
+            </div>
+          ) : (
+            <div className="bg-muted/30 border border-border rounded-lg p-5 text-center">
+              <MessageSquare className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+              <p className="font-body text-sm text-muted-foreground mb-3">
+                Sign in to write a review
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={login}
+                className="font-body gap-2"
+              >
+                Sign In to Review
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </main>
