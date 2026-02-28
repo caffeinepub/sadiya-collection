@@ -35,6 +35,10 @@ export interface AuthContextValue {
     currentPassword: string,
     newPassword: string,
   ) => Promise<void>;
+  changeUserPassword: (
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<void>;
 }
 
 // ─── Constants ────────────────────────────────────────────────────
@@ -278,6 +282,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const changeUserPassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      if (!currentUser || currentUser.isAdmin) {
+        throw new Error("Admin password must be changed from Admin Dashboard.");
+      }
+      const users = getStoredUsers();
+      const storedUser = users[currentUser.email];
+      if (!storedUser) {
+        throw new Error("User account not found.");
+      }
+      if (storedUser.passwordHash !== simpleHash(currentPassword)) {
+        throw new Error("Current password is incorrect.");
+      }
+      if (newPassword.length < 6) {
+        throw new Error("New password must be at least 6 characters.");
+      }
+      storedUser.passwordHash = simpleHash(newPassword);
+      users[currentUser.email] = storedUser;
+      saveStoredUsers(users);
+    },
+    [currentUser],
+  );
+
   return (
     <AuthContext.Provider
       value={{
@@ -289,6 +316,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         changeAdminPassword,
+        changeUserPassword,
       }}
     >
       {children}

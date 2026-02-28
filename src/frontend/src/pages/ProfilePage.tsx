@@ -3,7 +3,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { LogIn, LogOut, Mail, MapPin, Phone, Save, User } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Lock,
+  LogIn,
+  LogOut,
+  Mail,
+  MapPin,
+  Phone,
+  Save,
+  Settings,
+  User,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -12,7 +24,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSaveProfile, useUserProfile } from "../hooks/useQueries";
 
 export default function ProfilePage() {
-  const { isAuthenticated, currentUser, logout } = useAuth();
+  const { isAuthenticated, currentUser, logout, changeUserPassword } =
+    useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const { data: profile, isLoading } = useUserProfile();
   const saveProfile = useSaveProfile();
@@ -23,6 +36,17 @@ export default function ProfilePage() {
     phone: "",
     address: "",
   });
+
+  // Change password form
+  const [cpForm, setCpForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [cpLoading, setCpLoading] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -52,6 +76,38 @@ export default function ProfilePage() {
       toast.success("Profile saved successfully!");
     } catch {
       toast.error("Failed to save profile");
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (
+      !cpForm.currentPassword ||
+      !cpForm.newPassword ||
+      !cpForm.confirmPassword
+    ) {
+      toast.error("Please fill in all password fields.");
+      return;
+    }
+    if (cpForm.newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters.");
+      return;
+    }
+    if (cpForm.newPassword !== cpForm.confirmPassword) {
+      toast.error("New passwords do not match.");
+      return;
+    }
+    setCpLoading(true);
+    try {
+      await changeUserPassword(cpForm.currentPassword, cpForm.newPassword);
+      toast.success("Password changed successfully!");
+      setCpForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to change password.",
+      );
+    } finally {
+      setCpLoading(false);
     }
   };
 
@@ -89,6 +145,7 @@ export default function ProfilePage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          className="space-y-6"
         >
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -113,6 +170,7 @@ export default function ProfilePage() {
             </Button>
           </div>
 
+          {/* Personal Information Card */}
           <div className="bg-card border border-border rounded-lg p-6">
             <h2 className="font-display text-lg font-semibold mb-4 flex items-center gap-2">
               <User className="w-5 h-5 text-primary" />
@@ -219,6 +277,152 @@ export default function ProfilePage() {
                     <Save className="w-4 h-4" />
                   )}
                   {saveProfile.isPending ? "Saving…" : "Save Profile"}
+                </Button>
+              </form>
+            )}
+          </div>
+
+          {/* Change Password Card */}
+          <div className="bg-card border border-border rounded-lg p-6">
+            <h2 className="font-display text-lg font-semibold mb-4 flex items-center gap-2">
+              <Lock className="w-5 h-5 text-primary" />
+              Change Password
+            </h2>
+
+            {currentUser?.isAdmin ? (
+              <div className="flex items-start gap-3 bg-muted/50 rounded-lg px-4 py-3">
+                <Settings className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                <p className="text-sm font-body text-muted-foreground">
+                  Admin password can be changed from the{" "}
+                  <a
+                    href="/admin"
+                    className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+                  >
+                    Admin Dashboard → Settings
+                  </a>
+                  .
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <Label htmlFor="cp-current" className="font-body text-sm">
+                    Current Password
+                  </Label>
+                  <div className="relative mt-1">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="cp-current"
+                      type={showCurrent ? "text" : "password"}
+                      value={cpForm.currentPassword}
+                      onChange={(e) =>
+                        setCpForm((f) => ({
+                          ...f,
+                          currentPassword: e.target.value,
+                        }))
+                      }
+                      placeholder="Your current password"
+                      className="pl-9 pr-10 font-body"
+                      autoComplete="current-password"
+                      disabled={cpLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrent((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showCurrent ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="cp-new" className="font-body text-sm">
+                    New Password
+                  </Label>
+                  <div className="relative mt-1">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="cp-new"
+                      type={showNew ? "text" : "password"}
+                      value={cpForm.newPassword}
+                      onChange={(e) =>
+                        setCpForm((f) => ({
+                          ...f,
+                          newPassword: e.target.value,
+                        }))
+                      }
+                      placeholder="Min 6 characters"
+                      className="pl-9 pr-10 font-body"
+                      autoComplete="new-password"
+                      disabled={cpLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNew((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showNew ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="cp-confirm" className="font-body text-sm">
+                    Confirm New Password
+                  </Label>
+                  <div className="relative mt-1">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="cp-confirm"
+                      type={showConfirm ? "text" : "password"}
+                      value={cpForm.confirmPassword}
+                      onChange={(e) =>
+                        setCpForm((f) => ({
+                          ...f,
+                          confirmPassword: e.target.value,
+                        }))
+                      }
+                      placeholder="Repeat new password"
+                      className="pl-9 pr-10 font-body"
+                      autoComplete="new-password"
+                      disabled={cpLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showConfirm ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <Button
+                  type="submit"
+                  className="gap-2 btn-ripple font-body"
+                  disabled={cpLoading}
+                >
+                  {cpLoading ? (
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Lock className="w-4 h-4" />
+                  )}
+                  {cpLoading ? "Updating…" : "Change Password"}
                 </Button>
               </form>
             )}
