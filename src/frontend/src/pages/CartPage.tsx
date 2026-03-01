@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
   CreditCard,
@@ -15,21 +15,24 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import AuthModal from "../components/AuthModal";
+import { useAuth } from "../contexts/AuthContext";
 import { useCart } from "../contexts/CartContext";
 import { formatPrice, getDiscountedPrice } from "../data/sampleProducts";
-import { useActor } from "../hooks/useActor";
 import {
   useActivePaymentGateways,
-  useIsStripeConfigured,
+  usePlaceOrder,
   useProducts,
 } from "../hooks/useQueries";
 
 export default function CartPage() {
   const { items, removeItem, addItem, isLoading, clearCart } = useCart();
   const { data: products } = useProducts();
-  const { data: stripeConfigured } = useIsStripeConfigured();
   const { data: activeGateways } = useActivePaymentGateways();
-  const { actor } = useActor();
+  const { currentUser, isAuthenticated } = useAuth();
+  const placeOrder = usePlaceOrder();
+  const navigate = useNavigate();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const allProducts = products || [];
 
@@ -53,71 +56,46 @@ export default function CartPage() {
   const total = subtotal + shippingFee;
 
   // Payment method selection
-  const stripeOption = stripeConfigured ? "stripe" : null;
   const gatewayOptions = (activeGateways || []).filter((g) => g.isActive);
-  const allPaymentOptions = [
-    ...(stripeOption ? [{ id: "stripe", name: "Stripe" }] : []),
-    ...gatewayOptions.map((g) => ({ id: g.id, name: g.name })),
-  ];
 
   const [selectedPayment, setSelectedPayment] = useState<string>(
-    stripeOption ?? gatewayOptions[0]?.id ?? "",
+    gatewayOptions[0]?.id ?? "cod",
   );
 
   const handleCheckout = async () => {
-    if (!actor) {
-      toast.error("Please sign in to checkout");
+    if (!isAuthenticated || !currentUser) {
+      setAuthModalOpen(true);
       return;
     }
 
-    if (!stripeConfigured && gatewayOptions.length === 0) {
-      toast.error("Payment gateway not configured. Please contact support.");
+    if (cartProducts.length === 0) {
+      toast.error("Your cart is empty");
       return;
     }
 
-    // If a manual gateway is selected, show info toast then proceed
-    const isManualGateway =
-      selectedPayment !== "stripe" &&
-      gatewayOptions.some((g) => g.id === selectedPayment);
-
-    if (isManualGateway) {
-      const gw = gatewayOptions.find((g) => g.id === selectedPayment);
-      toast.info(
-        `Payment gateway selected: ${gw?.name}. Redirecting to checkout…`,
-      );
-    }
-
-    if (!stripeConfigured) {
-      toast.error("Stripe is not configured yet. Please contact support.");
-      return;
-    }
+    const selectedGateway = gatewayOptions.find(
+      (g) => g.id === selectedPayment,
+    );
 
     try {
-      const shoppingItems = cartProducts.map(({ item, product }) => {
-        const p = product!;
-        const finalPrice = getDiscountedPrice(p.price, p.discountPercent);
-        return {
-          productName: p.name,
-          productDescription: p.description,
-          currency: "inr",
-          quantity: item.quantity,
-          priceInCents: finalPrice,
-        };
+      toast.loading("Placing your order...");
+      await placeOrder.mutateAsync({
+        userEmail: currentUser.email,
+        cart: items.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+        })),
+        totalAmount: total,
+        paymentIntentId: `manual-${Date.now()}`,
+        gatewayName: selectedGateway?.name || "Cash on Delivery",
       });
-
-      const successUrl = `${window.location.origin}/order-success?session_id={CHECKOUT_SESSION_ID}`;
-      const cancelUrl = `${window.location.origin}/cart`;
-
-      toast.loading("Redirecting to payment...");
-      const sessionUrl = await actor.createCheckoutSession(
-        shoppingItems,
-        successUrl,
-        cancelUrl,
-      );
-      window.location.href = sessionUrl;
+      await clearCart();
+      toast.dismiss();
+      toast.success("Order placed successfully!");
+      void navigate({ to: "/orders" });
     } catch (err) {
       toast.dismiss();
-      toast.error("Checkout failed. Please try again.");
+      toast.error("Failed to place order. Please try again.");
       console.error(err);
     }
   };
@@ -220,7 +198,7 @@ export default function CartPage() {
                               type="button"
                               onClick={() => {
                                 if (item.quantity <= 1n) {
-                                  removeItem(item.productId);
+                                  void removeItem(item.productId);
                                 } else {
                                   void addItem(
                                     item.productId,
@@ -239,7 +217,7 @@ export default function CartPage() {
                             <button
                               type="button"
                               onClick={() =>
-                                addItem(item.productId, item.quantity + 1n)
+                                void addItem(item.productId, item.quantity + 1n)
                               }
                               disabled={isLoading}
                               className="px-2 py-1 hover:bg-muted transition-colors"
@@ -265,7 +243,7 @@ export default function CartPage() {
                       {/* Remove */}
                       <button
                         type="button"
-                        onClick={() => removeItem(item.productId)}
+                        onClick={() => void removeItem(item.productId)}
                         disabled={isLoading}
                         className="self-start p-1 text-muted-foreground hover:text-destructive transition-colors"
                       >
@@ -286,7 +264,7 @@ export default function CartPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={clearCart}
+                  onClick={() => void clearCart()}
                   className="text-muted-foreground hover:text-destructive font-body"
                 >
                   <Trash2 className="w-4 h-4 mr-1" />
@@ -340,68 +318,109 @@ export default function CartPage() {
                 </div>
 
                 {/* Payment Method Selection */}
-                {allPaymentOptions.length > 0 && (
-                  <div className="mt-4">
-                    <p className="font-body text-sm font-medium mb-2 flex items-center gap-1.5">
-                      <Wallet className="w-4 h-4 text-primary" />
-                      Select Payment Method
-                    </p>
-                    <div className="space-y-2">
-                      {allPaymentOptions.map((opt) => (
-                        <label
-                          key={opt.id}
-                          className={`flex items-center gap-3 p-2.5 rounded-md border cursor-pointer transition-colors ${
-                            selectedPayment === opt.id
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="paymentMethod"
-                            value={opt.id}
-                            checked={selectedPayment === opt.id}
-                            onChange={() => setSelectedPayment(opt.id)}
-                            className="accent-primary"
-                          />
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="w-4 h-4 text-muted-foreground" />
-                            <span className="font-body text-sm font-medium">
-                              {opt.name}
-                            </span>
-                          </div>
-                          {selectedPayment === opt.id && (
-                            <Badge className="ml-auto text-xs bg-primary/10 text-primary border-primary/20">
-                              Selected
-                            </Badge>
-                          )}
-                        </label>
-                      ))}
-                    </div>
+                <div className="mt-4">
+                  <p className="font-body text-sm font-medium mb-2 flex items-center gap-1.5">
+                    <Wallet className="w-4 h-4 text-primary" />
+                    Payment Method
+                  </p>
+                  <div className="space-y-2">
+                    {/* Cash on Delivery always available */}
+                    <label
+                      className={`flex items-center gap-3 p-2.5 rounded-md border cursor-pointer transition-colors ${
+                        selectedPayment === "cod"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="cod"
+                        checked={selectedPayment === "cod"}
+                        onChange={() => setSelectedPayment("cod")}
+                        className="accent-primary"
+                      />
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-body text-sm font-medium">
+                          Cash on Delivery
+                        </span>
+                      </div>
+                      {selectedPayment === "cod" && (
+                        <Badge className="ml-auto text-xs bg-primary/10 text-primary border-primary/20">
+                          Selected
+                        </Badge>
+                      )}
+                    </label>
+
+                    {/* Manual payment gateways */}
+                    {gatewayOptions.map((opt) => (
+                      <label
+                        key={opt.id}
+                        className={`flex items-center gap-3 p-2.5 rounded-md border cursor-pointer transition-colors ${
+                          selectedPayment === opt.id
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value={opt.id}
+                          checked={selectedPayment === opt.id}
+                          onChange={() => setSelectedPayment(opt.id)}
+                          className="accent-primary"
+                        />
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-body text-sm font-medium">
+                            {opt.name}
+                          </span>
+                        </div>
+                        {selectedPayment === opt.id && (
+                          <Badge className="ml-auto text-xs bg-primary/10 text-primary border-primary/20">
+                            Selected
+                          </Badge>
+                        )}
+                      </label>
+                    ))}
                   </div>
-                )}
+                </div>
 
                 <Button
                   size="lg"
                   onClick={handleCheckout}
+                  disabled={placeOrder.isPending}
                   className="w-full mt-5 gap-2 btn-ripple font-body"
                 >
-                  {selectedPayment && selectedPayment !== "stripe"
-                    ? `Pay with ${allPaymentOptions.find((o) => o.id === selectedPayment)?.name ?? "Gateway"}`
-                    : "Proceed to Checkout"}
-                  <ArrowRight className="w-4 h-4" />
+                  {placeOrder.isPending ? (
+                    "Placing Order..."
+                  ) : (
+                    <>
+                      {selectedPayment === "cod"
+                        ? "Place Order (COD)"
+                        : `Pay with ${gatewayOptions.find((o) => o.id === selectedPayment)?.name ?? "Gateway"}`}
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center mt-3 font-body">
-                  {selectedPayment === "stripe" || !selectedPayment
-                    ? "Secure checkout powered by Stripe"
-                    : `Payment via ${allPaymentOptions.find((o) => o.id === selectedPayment)?.name ?? "selected gateway"}`}
+                  {selectedPayment === "cod"
+                    ? "Pay on delivery at your doorstep"
+                    : `Payment via ${gatewayOptions.find((o) => o.id === selectedPayment)?.name ?? "selected gateway"}`}
                 </p>
               </div>
             </motion.div>
           </div>
         </motion.div>
       </div>
+
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        defaultTab="signin"
+      />
     </main>
   );
 }

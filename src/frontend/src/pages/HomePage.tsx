@@ -11,16 +11,19 @@ import {
   Truck,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useState } from "react";
+import AuthModal from "../components/AuthModal";
 import OfferBanner from "../components/OfferBanner";
 import ProductCard from "../components/ProductCard";
+import { useAuth } from "../contexts/AuthContext";
 import { BAG_CATEGORIES } from "../data/sampleProducts";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useActiveOffers, useProducts } from "../hooks/useQueries";
 
 export default function HomePage() {
   const { data: products, isLoading } = useProducts();
   const { data: offers } = useActiveOffers();
-  const { identity, login } = useInternetIdentity();
+  const { isAuthenticated } = useAuth();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const displayProducts = products || [];
   const featuredProducts = displayProducts
@@ -188,11 +191,11 @@ export default function HomePage() {
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </Link>
-              {!identity && (
+              {!isAuthenticated && (
                 <Button
                   variant="ghost"
                   size="lg"
-                  onClick={login}
+                  onClick={() => setAuthModalOpen(true)}
                   className="gap-2 font-body text-sm px-5"
                   style={{
                     color: "oklch(0.88 0.06 45)",
@@ -449,9 +452,9 @@ export default function HomePage() {
               </p>
               <div className="h-px w-12 bg-white/20" />
             </div>
-            {!identity && (
+            {!isAuthenticated && (
               <Button
-                onClick={login}
+                onClick={() => setAuthModalOpen(true)}
                 size="lg"
                 className="btn-ripple font-body gap-2 px-8 rounded-full"
                 style={{
@@ -564,6 +567,12 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        defaultTab="signin"
+      />
     </main>
   );
 }

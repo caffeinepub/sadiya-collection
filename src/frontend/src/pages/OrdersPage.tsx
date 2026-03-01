@@ -28,8 +28,9 @@ import {
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import AuthModal from "../components/AuthModal";
+import { useAuth } from "../contexts/AuthContext";
 import { formatPrice } from "../data/sampleProducts";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useCancelOrder,
   useMyOrders,
@@ -367,13 +368,14 @@ function OrderActions({
 }
 
 export default function OrdersPage() {
-  const { identity, login } = useInternetIdentity();
+  const { isAuthenticated } = useAuth();
   const { data: orders, isLoading } = useMyOrders();
   const { data: products } = useProducts();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const allProducts = products || [];
 
-  if (!identity) {
+  if (!isAuthenticated) {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
@@ -383,12 +385,17 @@ export default function OrdersPage() {
             Sign in to view your order history
           </p>
           <Button
-            onClick={login}
+            onClick={() => setAuthModalOpen(true)}
             size="lg"
             className="gap-2 font-body btn-ripple"
           >
             Sign In
           </Button>
+          <AuthModal
+            open={authModalOpen}
+            onClose={() => setAuthModalOpen(false)}
+            defaultTab="signin"
+          />
         </div>
       </main>
     );

@@ -36,23 +36,19 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
-import { useActor } from "../../hooks/useActor";
 import {
   useAddPaymentGateway,
   useAllPaymentGateways,
   useDeletePaymentGateway,
-  useIsStripeConfigured,
   useSaveSiteSettings,
   useSiteSettings,
 } from "../../hooks/useQueries";
 
 export default function AdminSettings() {
-  const { data: stripeConfigured } = useIsStripeConfigured();
   const { data: gateways, isLoading: gatewaysLoading } =
     useAllPaymentGateways();
   const addGateway = useAddPaymentGateway();
   const deleteGateway = useDeletePaymentGateway();
-  const { actor } = useActor();
   const { changeAdminPassword } = useAuth();
 
   // Admin Password Change
@@ -139,12 +135,6 @@ export default function AdminSettings() {
     }
   };
 
-  // Stripe state
-  const [secretKey, setSecretKey] = useState("");
-  const [countries, setCountries] = useState("IN,US,GB,AU,CA");
-  const [showKey, setShowKey] = useState(false);
-  const [saving, setSaving] = useState(false);
-
   // New gateway form state
   const [gwName, setGwName] = useState("");
   const [gwApiKey, setGwApiKey] = useState("");
@@ -153,34 +143,6 @@ export default function AdminSettings() {
   const [showGwApiKey, setShowGwApiKey] = useState(false);
   const [showGwSecretKey, setShowGwSecretKey] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-
-  const handleSaveStripe = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!actor) {
-      toast.error("Not connected");
-      return;
-    }
-    if (!secretKey.trim()) {
-      toast.error("Stripe secret key is required");
-      return;
-    }
-    setSaving(true);
-    try {
-      await actor.setStripeConfiguration({
-        secretKey: secretKey.trim(),
-        allowedCountries: countries
-          .split(",")
-          .map((c) => c.trim())
-          .filter(Boolean),
-      });
-      toast.success("Stripe configuration saved!");
-      setSecretKey("");
-    } catch {
-      toast.error("Failed to save Stripe configuration");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleAddGateway = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -740,105 +702,25 @@ export default function AdminSettings() {
           )}
         </motion.div>
 
-        {/* ── Stripe Configuration ── */}
+        {/* ── Payment Note ── */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-card border border-border rounded-lg p-6"
+          className="bg-muted/40 border border-border rounded-lg p-5"
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-primary" />
-              <h2 className="font-display text-lg font-semibold">
-                Stripe Payment Gateway
-              </h2>
-            </div>
-            <Badge
-              className={`text-xs font-body ${
-                stripeConfigured
-                  ? "bg-green-100 text-green-700"
-                  : "bg-yellow-100 text-yellow-700"
-              }`}
-            >
-              {stripeConfigured ? (
-                <>
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  Configured
-                </>
-              ) : (
-                "Not Configured"
-              )}
-            </Badge>
+          <div className="flex items-center gap-2 mb-2">
+            <CreditCard className="w-5 h-5 text-primary" />
+            <h2 className="font-display text-base font-semibold">
+              Payment Processing
+            </h2>
           </div>
-
-          <p className="text-sm text-muted-foreground font-body mb-4">
-            Configure your Stripe secret key to enable payment processing. Get
-            your keys from the{" "}
-            <a
-              href="https://dashboard.stripe.com/apikeys"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary underline"
-            >
-              Stripe Dashboard
-            </a>
-            .
+          <p className="text-sm text-muted-foreground font-body">
+            Add your payment gateways (Razorpay, PayTM, PayU, etc.) using the{" "}
+            <strong>"Payment Gateways"</strong> section above. Cash on Delivery
+            is always available at checkout. Manual gateways you add will appear
+            as options for customers to choose at checkout.
           </p>
-
-          <form onSubmit={handleSaveStripe} className="space-y-4">
-            <div>
-              <Label className="font-body text-sm">Stripe Secret Key *</Label>
-              <div className="relative mt-1">
-                <Input
-                  type={showKey ? "text" : "password"}
-                  value={secretKey}
-                  onChange={(e) => setSecretKey(e.target.value)}
-                  placeholder="sk_live_... or sk_test_..."
-                  className="font-mono text-sm pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKey((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showKey ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground font-body mt-1">
-                Use test keys for development, live keys for production.
-              </p>
-            </div>
-
-            <div>
-              <Label className="font-body text-sm">
-                Allowed Countries (comma-separated)
-              </Label>
-              <Input
-                value={countries}
-                onChange={(e) => setCountries(e.target.value)}
-                placeholder="IN,US,GB,AU,CA"
-                className="mt-1 font-mono text-sm"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={saving}
-              className="gap-2 btn-ripple font-body"
-            >
-              {saving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              {saving ? "Saving…" : "Save Stripe Configuration"}
-            </Button>
-          </form>
         </motion.div>
 
         {/* Store Info */}

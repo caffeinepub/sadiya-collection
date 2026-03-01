@@ -2,20 +2,27 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { ShoppingCart, Tag } from "lucide-react";
 import { motion } from "motion/react";
+import { useState } from "react";
 import { toast } from "sonner";
 import type { Product } from "../backend.d";
+import { useAuth } from "../contexts/AuthContext";
 import { useCart } from "../contexts/CartContext";
 import { formatPrice, getDiscountedPrice } from "../data/sampleProducts";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
 
 interface ProductCardProps {
   product: Product;
   index?: number;
+  onSignInNeeded?: () => void;
 }
 
-export default function ProductCard({ product, index = 0 }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  index = 0,
+  onSignInNeeded,
+}: ProductCardProps) {
   const { addItem, isLoading } = useCart();
-  const { identity, login } = useInternetIdentity();
+  const { isAuthenticated } = useAuth();
+  const [localLoading, setLocalLoading] = useState(false);
 
   const finalPrice = getDiscountedPrice(product.price, product.discountPercent);
   const hasDiscount = product.discountPercent > 0n;
@@ -26,11 +33,16 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!identity) {
-      login();
+    if (!isAuthenticated) {
+      if (onSignInNeeded) {
+        onSignInNeeded();
+      } else {
+        toast.error("Please sign in to add items to your cart");
+      }
       return;
     }
     if (isOutOfStock) return;
+    setLocalLoading(true);
     try {
       await addItem(product.id);
       toast.success("Added to cart!", {
@@ -39,6 +51,8 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
       });
     } catch {
       toast.error("Failed to add to cart");
+    } finally {
+      setLocalLoading(false);
     }
   };
 
@@ -92,7 +106,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
                   type="button"
                   whileTap={{ scale: 0.98 }}
                   onClick={handleAddToCart}
-                  disabled={isLoading}
+                  disabled={isLoading || localLoading}
                   className="w-full flex items-center justify-center gap-2 py-3 font-body text-xs font-semibold uppercase tracking-widest transition-colors"
                   style={{
                     background: "oklch(0.15 0.02 25 / 0.92)",
@@ -102,7 +116,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
                   }}
                 >
                   <ShoppingCart className="w-3.5 h-3.5" />
-                  {!identity ? "Sign In to Add" : "Add to Cart"}
+                  {!isAuthenticated ? "Sign In to Add" : "Add to Cart"}
                 </motion.button>
               </div>
             )}

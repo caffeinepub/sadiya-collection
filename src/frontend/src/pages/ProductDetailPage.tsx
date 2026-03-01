@@ -19,10 +19,10 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import AuthModal from "../components/AuthModal";
 import { useAuth } from "../contexts/AuthContext";
 import { useCart } from "../contexts/CartContext";
 import { formatPrice, getDiscountedPrice } from "../data/sampleProducts";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useAddReview,
   useProductReviews,
@@ -44,8 +44,8 @@ export default function ProductDetailPage() {
   const { data: reviews, isLoading: reviewsLoading } = useProductReviews(id);
   const addReview = useAddReview();
   const { addItem, isLoading } = useCart();
-  const { identity, login } = useInternetIdentity();
-  const { currentUser } = useAuth();
+  const { currentUser, isAuthenticated } = useAuth();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const allProducts = products || [];
   const product = allProducts.find((p) => p.id === id);
@@ -87,8 +87,8 @@ export default function ProductDetailPage() {
       : 0;
 
   const handleAddToCart = async () => {
-    if (!identity) {
-      login();
+    if (!isAuthenticated) {
+      setAuthModalOpen(true);
       return;
     }
     if (isOutOfStock) return;
@@ -104,8 +104,8 @@ export default function ProductDetailPage() {
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!identity) {
-      login();
+    if (!isAuthenticated) {
+      setAuthModalOpen(true);
       return;
     }
     if (!reviewComment.trim()) {
@@ -116,7 +116,8 @@ export default function ProductDetailPage() {
       await addReview.mutateAsync({
         id: `review-${Date.now()}`,
         productId: id,
-        userId: identity.getPrincipal(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        userId: (currentUser?.email || "anonymous") as any,
         userName: currentUser?.name || "Anonymous",
         rating: BigInt(reviewRating),
         comment: reviewComment.trim(),
@@ -368,7 +369,7 @@ export default function ProductDetailPage() {
                   ? "Added to Cart!"
                   : isOutOfStock
                     ? "Out of Stock"
-                    : !identity
+                    : !isAuthenticated
                       ? "Sign In to Add"
                       : "Add to Cart"}
               </Button>
@@ -529,7 +530,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Write a Review */}
-          {identity ? (
+          {isAuthenticated ? (
             <div className="bg-card border border-border rounded-lg p-5">
               <h3 className="font-display font-semibold text-lg mb-4">
                 Write a Review
@@ -602,7 +603,7 @@ export default function ProductDetailPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={login}
+                onClick={() => setAuthModalOpen(true)}
                 className="font-body gap-2"
               >
                 Sign In to Review
@@ -611,6 +612,12 @@ export default function ProductDetailPage() {
           )}
         </div>
       </div>
+
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        defaultTab="signin"
+      />
     </main>
   );
 }

@@ -6,12 +6,15 @@ import {
   useEffect,
   useState,
 } from "react";
-import type { CartItem } from "../backend.d";
-import { useActor } from "../hooks/useActor";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useAuth } from "./AuthContext";
+
+export interface LocalCartItem {
+  productId: string;
+  quantity: bigint;
+}
 
 interface CartContextType {
-  items: CartItem[];
+  items: LocalCartItem[];
   totalItems: number;
   addItem: (productId: string, quantity?: bigint) => Promise<void>;
   removeItem: (productId: string) => Promise<void>;
@@ -23,69 +26,136 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+const CART_PREFIX = "sadiya_cart_";
+
+function getCartKey(email: string): string {
+  return `${CART_PREFIX}${email}`;
+}
+
+function serializeCart(items: LocalCartItem[]): string {
+  return JSON.stringify(
+    items.map((i) => ({
+      productId: i.productId,
+      quantity: i.quantity.toString(),
+    })),
+  );
+}
+
+function deserializeCart(raw: string): LocalCartItem[] {
+  try {
+    const parsed = JSON.parse(raw) as Array<{
+      productId: string;
+      quantity: string;
+    }>;
+    return parsed.map((i) => ({
+      productId: i.productId,
+      quantity: BigInt(i.quantity),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function loadCart(email: string): LocalCartItem[] {
+  try {
+    const raw = localStorage.getItem(getCartKey(email));
+    if (!raw) return [];
+    return deserializeCart(raw);
+  } catch {
+    return [];
+  }
+}
+
+function saveCart(email: string, items: LocalCartItem[]) {
+  localStorage.setItem(getCartKey(email), serializeCart(items));
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
-  const { actor, isFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const [items, setItems] = useState<CartItem[]>([]);
+  const { currentUser } = useAuth();
+  const [items, setItems] = useState<LocalCartItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
 
-  const fetchCart = useCallback(async () => {
-    if (!actor || !identity) return;
-    try {
-      const cart = await actor.getMyCart();
-      setItems(cart);
-    } catch {
-      // silently fail for guests
-    }
-  }, [actor, identity]);
-
+  // Load cart whenever the logged-in user changes
   useEffect(() => {
-    if (actor && !isFetching && identity) {
-      void fetchCart();
+    if (currentUser && !currentUser.isAdmin) {
+      const loaded = loadCart(currentUser.email);
+      setItems(loaded);
+    } else {
+      setItems([]);
     }
-  }, [actor, isFetching, identity, fetchCart]);
+  }, [currentUser]);
+
+  const fetchCart = useCallback(async () => {
+    if (!currentUser || currentUser.isAdmin) {
+      setItems([]);
+      return;
+    }
+    const loaded = loadCart(currentUser.email);
+    setItems(loaded);
+  }, [currentUser]);
 
   const addItem = useCallback(
     async (productId: string, quantity = 1n) => {
-      if (!actor) return;
+      if (!currentUser || currentUser.isAdmin) return;
       setIsLoading(true);
       try {
-        await actor.addToCart({ productId, quantity });
-        await fetchCart();
+        const current = loadCart(currentUser.email);
+        const existingIdx = current.findIndex((i) => i.productId === productId);
+
+        let updated: LocalCartItem[];
+        if (existingIdx !== -1) {
+          // Replace quantity (not accumulate) if quantity passed in, else add 1
+          updated = current.map((item, idx) =>
+            idx === existingIdx
+              ? {
+                  ...item,
+                  quantity: quantity === 1n ? item.quantity + 1n : quantity,
+                }
+              : item,
+          );
+        } else {
+          updated = [...current, { productId, quantity }];
+        }
+
+        saveCart(currentUser.email, updated);
+        setItems(updated);
         setJustAdded(true);
         setTimeout(() => setJustAdded(false), 600);
       } finally {
         setIsLoading(false);
       }
     },
-    [actor, fetchCart],
+    [currentUser],
   );
 
   const removeItem = useCallback(
     async (productId: string) => {
-      if (!actor) return;
+      if (!currentUser || currentUser.isAdmin) return;
       setIsLoading(true);
       try {
-        await actor.removeFromCart(productId);
-        await fetchCart();
+        const updated = loadCart(currentUser.email).filter(
+          (i) => i.productId !== productId,
+        );
+        saveCart(currentUser.email, updated);
+        setItems(updated);
       } finally {
         setIsLoading(false);
       }
     },
-    [actor, fetchCart],
+    [currentUser],
   );
 
   const clearCart = useCallback(async () => {
-    if (!actor) return;
+    if (!currentUser || currentUser.isAdmin) return;
     setIsLoading(true);
     try {
-      await actor.clearCart();
+      saveCart(currentUser.email, []);
       setItems([]);
     } finally {
       setIsLoading(false);
     }
-  }, [actor]);
+  }, [currentUser]);
 
   const totalItems = items.reduce(
     (acc, item) => acc + Number(item.quantity),
