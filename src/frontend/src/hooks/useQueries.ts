@@ -225,64 +225,92 @@ export function usePlaceOrder() {
   });
 }
 
-// ─── Payment Gateways ───
+// ─── Payment Gateways (localStorage-based) ───
+const GATEWAYS_KEY = "sadiya_payment_gateways";
+
+function getLocalGateways(): PaymentGateway[] {
+  try {
+    return JSON.parse(
+      localStorage.getItem(GATEWAYS_KEY) || "[]",
+    ) as PaymentGateway[];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalGateways(gateways: PaymentGateway[]) {
+  localStorage.setItem(GATEWAYS_KEY, JSON.stringify(gateways));
+}
+
 export function useActivePaymentGateways() {
-  const { actor, isFetching } = useActor();
   return useQuery<MaskedPaymentGateway[]>({
     queryKey: ["activePaymentGateways"],
     queryFn: async () => {
-      if (!actor) return [];
-      return actor.getActivePaymentGateways();
+      const gateways = getLocalGateways();
+      return gateways
+        .filter((g) => g.isActive)
+        .map((g) => ({
+          id: g.id,
+          name: g.name,
+          isActive: g.isActive,
+          maskedApiKey: g.apiKey ? `${g.apiKey.slice(0, 8)}••••` : "••••••••",
+          maskedSecretKey: "••••",
+        }));
     },
-    enabled: !!actor && !isFetching,
   });
 }
 
 export function useAllPaymentGateways() {
-  const { actor, isFetching } = useActor();
   return useQuery<PaymentGateway[]>({
     queryKey: ["paymentGateways"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getAllPaymentGateways();
-    },
-    enabled: !!actor && !isFetching,
+    queryFn: async () => getLocalGateways(),
   });
 }
 
 export function useAddPaymentGateway() {
-  const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (gateway: PaymentGateway) => {
-      if (!actor) throw new Error("Not connected");
-      return actor.addPaymentGateway(gateway);
+      const gateways = getLocalGateways();
+      gateways.push(gateway);
+      saveLocalGateways(gateways);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["paymentGateways"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["paymentGateways"] });
+      qc.invalidateQueries({ queryKey: ["activePaymentGateways"] });
+    },
   });
 }
 
 export function useUpdatePaymentGateway() {
-  const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (gateway: PaymentGateway) => {
-      if (!actor) throw new Error("Not connected");
-      return actor.updatePaymentGateway(gateway);
+      const gateways = getLocalGateways();
+      const idx = gateways.findIndex((g) => g.id === gateway.id);
+      if (idx !== -1) {
+        gateways[idx] = gateway;
+        saveLocalGateways(gateways);
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["paymentGateways"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["paymentGateways"] });
+      qc.invalidateQueries({ queryKey: ["activePaymentGateways"] });
+    },
   });
 }
 
 export function useDeletePaymentGateway() {
-  const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (gatewayId: string) => {
-      if (!actor) throw new Error("Not connected");
-      return actor.deletePaymentGateway(gatewayId);
+      const gateways = getLocalGateways().filter((g) => g.id !== gatewayId);
+      saveLocalGateways(gateways);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["paymentGateways"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["paymentGateways"] });
+      qc.invalidateQueries({ queryKey: ["activePaymentGateways"] });
+    },
   });
 }
 
